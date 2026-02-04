@@ -1494,7 +1494,10 @@
     </div>
 
     <script>
-        const API_URL = 'http://localhost:3001/api';
+        // Use relative URL for production, absolute for local development
+        const API_URL = window.location.hostname === 'localhost'
+            ? 'http://localhost:3001/api'
+            : '/api';
         let currentProject = null;
         let currentEntity = null;
         let regions = [];
