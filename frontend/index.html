@@ -1,0 +1,3815 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SERM Monitor - Мониторинг репутации</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0f0f23;
+            --bg-secondary: #1a1a35;
+            --bg-card: rgba(255,255,255,0.05);
+            --text-primary: #fff;
+            --text-secondary: #8892b0;
+            --accent-primary: #667eea;
+            --accent-secondary: #764ba2;
+            --positive: #00d26a;
+            --negative: #ff6b6b;
+            --neutral: #ffd93d;
+            --border: rgba(255,255,255,0.1);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            min-height: 100vh;
+            color: var(--text-primary);
+        }
+
+        /* Layout */
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logo {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 30px;
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .sidebar-section {
+            margin-bottom: 20px;
+        }
+
+        .sidebar-section h3 {
+            color: var(--text-secondary);
+            font-size: 0.8em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .project-list {
+            list-style: none;
+        }
+
+        .project-item {
+            padding: 12px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 5px;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .project-item:hover {
+            background: rgba(102, 126, 234, 0.2);
+        }
+
+        .project-item.active {
+            background: rgba(102, 126, 234, 0.3);
+            border-left: 3px solid var(--accent-primary);
+        }
+
+        .project-item .name {
+            flex: 1;
+        }
+
+        .project-item .delete-btn {
+            opacity: 0;
+            background: none;
+            border: none;
+            color: var(--negative);
+            cursor: pointer;
+            padding: 5px;
+            transition: opacity 0.2s;
+        }
+
+        .project-item:hover .delete-btn {
+            opacity: 1;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-success {
+            background: var(--positive);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--negative);
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 8px 15px;
+            font-size: 0.85em;
+        }
+
+        .btn-icon {
+            padding: 8px 12px;
+            font-size: 1.2em;
+            min-width: 40px;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Navigation Bar */
+        .nav-bar {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 10px 0;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        .nav-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.2em;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(102, 126, 234, 0.2);
+            border-color: var(--accent-primary);
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        .page-header {
+            margin-bottom: 30px;
+        }
+
+        .page-header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .page-header p {
+            color: var(--text-secondary);
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+        }
+
+        .card h3 {
+            margin-bottom: 20px;
+            color: var(--text-primary);
+        }
+
+        /* Grid */
+        .grid {
+            display: grid;
+            gap: 20px;
+        }
+
+        .grid-2 { grid-template-columns: repeat(2, 1fr); }
+        .grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+        @media (max-width: 1200px) {
+            .grid-4 { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 900px) {
+            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
+        }
+
+        /* Stats */
+        .stat-card {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .stat-card .value {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .label {
+            color: var(--text-secondary);
+            font-size: 0.9em;
+        }
+
+        .stat-card.positive .value { color: var(--positive); }
+        .stat-card.negative .value { color: var(--negative); }
+        .stat-card.neutral .value { color: var(--neutral); }
+
+        /* Forms */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+            font-size: 0.9em;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            background: rgba(0,0,0,0.2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 1em;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+
+        /* Inline Form */
+        .form-inline {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .form-inline .form-group {
+            margin-bottom: 0;
+        }
+
+        /* Checkboxes */
+        .checkbox-group {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--accent-primary);
+        }
+
+        /* Select */
+        select.form-control {
+            cursor: pointer;
+        }
+
+        /* Tables */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: rgba(102, 126, 234, 0.2);
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        tr:hover {
+            background: rgba(255,255,255,0.02);
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+
+        .badge-positive { background: rgba(0, 210, 106, 0.2); color: var(--positive); }
+        .badge-negative { background: rgba(255, 107, 107, 0.2); color: var(--negative); }
+        .badge-neutral { background: rgba(255, 217, 61, 0.2); color: var(--neutral); }
+        .badge-google { background: rgba(66, 133, 244, 0.2); color: #4285f4; }
+        .badge-yandex { background: rgba(255, 204, 0, 0.2); color: #ffcc00; }
+        .badge-region { background: rgba(102, 126, 234, 0.2); color: var(--accent-primary); }
+
+        /* Sentiment Cell with Color */
+        .sentiment-cell {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sentiment-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .sentiment-indicator.positive { background: var(--positive); box-shadow: 0 0 10px var(--positive); }
+        .sentiment-indicator.negative { background: var(--negative); box-shadow: 0 0 10px var(--negative); }
+        .sentiment-indicator.neutral { background: var(--neutral); box-shadow: 0 0 10px var(--neutral); }
+
+        .sentiment-row.positive { background: rgba(0, 210, 106, 0.05); }
+        .sentiment-row.negative { background: rgba(255, 107, 107, 0.05); }
+        .sentiment-row.neutral { background: rgba(255, 217, 61, 0.05); }
+
+        .sentiment-row.positive:hover { background: rgba(0, 210, 106, 0.1); }
+        .sentiment-row.negative:hover { background: rgba(255, 107, 107, 0.1); }
+        .sentiment-row.neutral:hover { background: rgba(255, 217, 61, 0.1); }
+
+        /* Comment Column */
+        .comment-cell {
+            font-size: 0.85em;
+            color: var(--text-secondary);
+            max-width: 250px;
+        }
+
+        /* Entity Cards */
+        .entity-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .entity-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            border-color: var(--accent-primary);
+        }
+
+        .entity-card h4 {
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .entity-card .meta {
+            color: var(--text-secondary);
+            font-size: 0.85em;
+            margin-bottom: 15px;
+        }
+
+        .entity-card .engines {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .entity-card .stats {
+            display: flex;
+            justify-content: space-between;
+            padding-top: 15px;
+            border-top: 1px solid var(--border);
+        }
+
+        .entity-card .stat {
+            text-align: center;
+        }
+
+        .entity-card .stat .value {
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        .entity-card .stat .label {
+            font-size: 0.75em;
+            color: var(--text-secondary);
+        }
+
+        /* Entity card parsing status */
+        .entity-card .parsing-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            background: rgba(99, 102, 241, 0.15);
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+        }
+
+        .entity-card .parsing-status .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(99, 102, 241, 0.3);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .entity-card .parsing-status .status-text {
+            flex: 1;
+            font-size: 0.85em;
+            color: var(--primary);
+        }
+
+        .entity-card .parsing-status .status-percent {
+            font-weight: 600;
+            color: var(--primary);
+            font-size: 0.9em;
+        }
+
+        .entity-card .mini-progress {
+            height: 4px;
+            background: rgba(99, 102, 241, 0.2);
+            border-radius: 2px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .entity-card .mini-progress-fill {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        .entity-card.parsing-active {
+            border-color: var(--primary);
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
+        }
+
+        .entity-card .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .entity-card .card-header h4 {
+            margin: 0;
+        }
+
+        .entity-card .parsing-badge {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: var(--primary);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.7em;
+            font-weight: 600;
+        }
+
+        .entity-card .parsing-badge .mini-spinner {
+            width: 10px;
+            height: 10px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .entity-card .card-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        .entity-card .btn-parse {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 12px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.85em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .entity-card .btn-parse:hover {
+            background: #5558e3;
+            transform: translateY(-1px);
+        }
+
+        .entity-card .btn-parse:disabled {
+            background: var(--text-secondary);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .entity-card .btn-parse .btn-spinner {
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background: var(--bg-secondary);
+            border-radius: 15px;
+            padding: 30px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            transform: translateY(-20px);
+            transition: transform 0.3s;
+        }
+
+        .modal-overlay.active .modal {
+            transform: translateY(0);
+        }
+
+        .modal h2 {
+            margin-bottom: 20px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        /* Fullscreen Report Modal */
+        .fullscreen-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg-primary);
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+            overflow: hidden;
+        }
+
+        .fullscreen-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .fullscreen-content {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .fullscreen-header {
+            padding: 20px 30px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .fullscreen-header h2 {
+            font-size: 1.5em;
+        }
+
+        .fullscreen-header .header-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .fullscreen-header .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 2em;
+            cursor: pointer;
+            padding: 5px 15px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .fullscreen-header .close-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 0;
+            background: var(--bg-card);
+            padding: 0 30px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab {
+            padding: 15px 30px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            color: var(--text-secondary);
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            color: var(--text-primary);
+            background: rgba(255,255,255,0.05);
+        }
+
+        .tab.active {
+            color: var(--text-primary);
+            border-bottom-color: var(--accent-primary);
+        }
+
+        .tab.google { border-bottom-color: transparent; }
+        .tab.google.active { border-bottom-color: #4285f4; }
+        .tab.yandex { border-bottom-color: transparent; }
+        .tab.yandex.active { border-bottom-color: #ffcc00; }
+
+        .tab-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+        }
+
+        .tab-pane {
+            display: none;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        /* Parsing Results */
+        .parsing-item {
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .parsing-item .info {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .parsing-item .date {
+            color: var(--text-secondary);
+            font-size: 0.9em;
+        }
+
+        .parsing-item .region-info {
+            font-size: 0.85em;
+        }
+
+        .parsing-item .actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* Progress Bar */
+        .parsing-progress {
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .parsing-progress .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .parsing-progress .progress-title {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .parsing-progress .progress-percent {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .parsing-progress .progress-bar-container {
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            height: 12px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .parsing-progress .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), #8b5cf6);
+            border-radius: 8px;
+            transition: width 0.3s ease;
+        }
+
+        .parsing-progress .progress-status {
+            font-size: 0.9em;
+            color: var(--text-secondary);
+        }
+
+        .parsing-progress.completed {
+            border: 1px solid var(--positive);
+        }
+
+        .parsing-progress.error {
+            border: 1px solid var(--negative);
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            background: var(--card-bg);
+            border-radius: 10px;
+            padding: 15px 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideIn 0.3s ease;
+            max-width: 350px;
+        }
+
+        .toast.success {
+            border-left: 4px solid var(--positive);
+        }
+
+        .toast.error {
+            border-left: 4px solid var(--negative);
+        }
+
+        .toast.info {
+            border-left: 4px solid var(--primary);
+        }
+
+        .toast-icon {
+            font-size: 1.3em;
+        }
+
+        .toast-content {
+            flex: 1;
+        }
+
+        .toast-title {
+            font-weight: 600;
+            margin-bottom: 3px;
+        }
+
+        .toast-message {
+            font-size: 0.9em;
+            color: var(--text-secondary);
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 1.2em;
+            padding: 0;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Global Progress Indicator */
+        .global-parsing-indicator {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 15px 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            z-index: 9999;
+            min-width: 280px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .global-parsing-indicator .indicator-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .global-parsing-indicator .indicator-title {
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .global-parsing-indicator .indicator-progress {
+            background: rgba(0,0,0,0.3);
+            border-radius: 6px;
+            height: 8px;
+            overflow: hidden;
+            margin-bottom: 5px;
+        }
+
+        .global-parsing-indicator .indicator-progress-fill {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 6px;
+            transition: width 0.3s ease;
+        }
+
+        .global-parsing-indicator .indicator-status {
+            font-size: 0.8em;
+            color: var(--text-secondary);
+        }
+
+        /* Chart Container */
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        /* Risk Meter */
+        .risk-meter {
+            margin: 20px 0;
+        }
+
+        .risk-bar {
+            height: 20px;
+            background: linear-gradient(90deg, var(--positive) 0%, var(--neutral) 50%, var(--negative) 100%);
+            border-radius: 10px;
+            position: relative;
+        }
+
+        .risk-indicator {
+            position: absolute;
+            top: -8px;
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-top: 15px solid white;
+            transform: translateX(-50%);
+            transition: left 0.5s;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state .icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 10px;
+            color: var(--text-primary);
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Sentiment Select */
+        .sentiment-select {
+            padding: 5px 10px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+
+        .sentiment-select.positive { border-color: var(--positive); color: var(--positive); }
+        .sentiment-select.negative { border-color: var(--negative); color: var(--negative); }
+        .sentiment-select.neutral { border-color: var(--neutral); color: var(--neutral); }
+
+        /* CTR Badge */
+        .ctr-badge {
+            background: rgba(240, 147, 251, 0.2);
+            color: #f093fb;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+
+        /* Breadcrumb */
+        .breadcrumb {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            color: var(--text-secondary);
+            font-size: 0.9em;
+            flex: 1;
+        }
+
+        .breadcrumb a {
+            color: var(--accent-primary);
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .breadcrumb .separator {
+            opacity: 0.5;
+        }
+
+        /* Summary Stats in Fullscreen */
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .summary-stat {
+            background: var(--bg-card);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .summary-stat .value {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .summary-stat .label {
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: var(--bg-card);
+            border-radius: 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9em;
+        }
+
+        /* Position Badge */
+        .position-badge {
+            background: rgba(102, 126, 234, 0.3);
+            color: var(--accent-primary);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            min-width: 35px;
+            text-align: center;
+        }
+
+        /* Parsing Controls */
+        .parsing-controls {
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            padding: 20px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .parsing-controls .form-group {
+            margin-bottom: 0;
+            min-width: 150px;
+        }
+
+        .parsing-controls .form-group label {
+            margin-bottom: 5px;
+        }
+
+        /* Comparison Table Styles */
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .comparison-table th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .comparison-cell {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.2s;
+        }
+
+        .comparison-cell.positive {
+            background: rgba(0, 210, 106, 0.15);
+            border-left: 3px solid var(--positive);
+        }
+
+        .comparison-cell.negative {
+            background: rgba(255, 107, 107, 0.15);
+            border-left: 3px solid var(--negative);
+        }
+
+        .comparison-cell.neutral {
+            background: rgba(255, 217, 61, 0.08);
+            border-left: 3px solid var(--neutral);
+        }
+
+        .comparison-cell:hover {
+            filter: brightness(1.1);
+        }
+
+        .comparison-site-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .comparison-site-info .domain {
+            font-weight: 600;
+            color: var(--accent-primary);
+            font-size: 0.95em;
+        }
+
+        .comparison-site-info .title {
+            font-size: 0.8em;
+            color: var(--text-secondary);
+            line-height: 1.3;
+        }
+
+        .comparison-cell a:hover .domain {
+            text-decoration: underline;
+        }
+
+        /* Tab styling for compare */
+        .tab:first-child {
+            font-weight: 600;
+        }
+
+        /* Time Comparison Table - Bright Colors */
+        .time-comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .time-comparison-table th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: var(--bg-card);
+        }
+
+        .time-cell {
+            padding: 12px 15px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+
+        .time-cell a {
+            color: inherit;
+            text-decoration: none;
+            font-weight: 600;
+            display: block;
+        }
+
+        .time-cell a:hover {
+            text-decoration: underline;
+        }
+
+        .time-cell.empty {
+            color: var(--text-secondary);
+            background: rgba(0,0,0,0.1);
+        }
+
+        /* Bright sentiment colors for time comparison */
+        .time-cell.bright-positive {
+            background: rgba(0, 230, 118, 0.35);
+            color: #00ff88;
+            border-left: 4px solid #00ff88;
+        }
+
+        .time-cell.bright-negative {
+            background: rgba(255, 82, 82, 0.35);
+            color: #ff5252;
+            border-left: 4px solid #ff5252;
+        }
+
+        .time-cell.bright-neutral {
+            background: rgba(255, 235, 59, 0.25);
+            color: #ffeb3b;
+            border-left: 4px solid #ffeb3b;
+        }
+
+        .time-cell.bright-positive:hover {
+            background: rgba(0, 230, 118, 0.5);
+        }
+
+        .time-cell.bright-negative:hover {
+            background: rgba(255, 82, 82, 0.5);
+        }
+
+        .time-cell.bright-neutral:hover {
+            background: rgba(255, 235, 59, 0.4);
+        }
+
+        /* Legend boxes for bright colors */
+        .bright-sentiment-box {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+
+        .bright-sentiment-box.positive {
+            background: #00ff88;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+        }
+
+        .bright-sentiment-box.negative {
+            background: #ff5252;
+            box-shadow: 0 0 10px rgba(255, 82, 82, 0.5);
+        }
+
+        .bright-sentiment-box.neutral {
+            background: #ffeb3b;
+            box-shadow: 0 0 10px rgba(255, 235, 59, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">SERM Monitor</div>
+
+            <div class="sidebar-section">
+                <button class="btn btn-primary" style="width: 100%" onclick="showCreateProjectModal()">
+                    + Новый проект
+                </button>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Проекты</h3>
+                <ul class="project-list" id="projectList">
+                    <!-- Projects will be loaded here -->
+                </ul>
+            </div>
+
+            <div class="sidebar-section">
+                <button class="btn btn-secondary" style="width: 100%; margin-bottom: 10px;" onclick="showBulkSearchResults()">
+                    📊 Bulk Search
+                </button>
+            </div>
+
+            <div class="sidebar-section" style="margin-top: auto;">
+                <button class="btn btn-secondary" style="width: 100%" onclick="showSettingsModal()">
+                    ⚙️ Настройки API
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content" id="mainContent">
+            <!-- Content will be loaded dynamically -->
+        </main>
+    </div>
+
+    <!-- Create Project Modal -->
+    <div class="modal-overlay" id="createProjectModal">
+        <div class="modal">
+            <h2>Создать проект</h2>
+            <div class="form-group">
+                <label>Название проекта</label>
+                <input type="text" class="form-control" id="projectName" placeholder="Например: Мониторинг бренда">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('createProjectModal')">Отмена</button>
+                <button class="btn btn-primary" onclick="createProject()">Создать</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Entity Modal -->
+    <div class="modal-overlay" id="createEntityModal">
+        <div class="modal">
+            <h2>Создать запрос</h2>
+            <div class="form-group">
+                <label>Ключевой запрос</label>
+                <input type="text" class="form-control" id="entityName" placeholder="Например: Название компании отзывы">
+            </div>
+            <div class="form-group">
+                <label>Поисковые системы</label>
+                <div class="checkbox-group">
+                    <label class="checkbox-item">
+                        <input type="checkbox" id="engineGoogle" checked>
+                        <span>Google</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" id="engineYandex" checked>
+                        <span>Яндекс</span>
+                    </label>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Глубина парсинга</label>
+                <select class="form-control" id="entityDepth">
+                    <option value="10">Топ 10</option>
+                    <option value="20" selected>Топ 20</option>
+                    <option value="50">Топ 50</option>
+                    <option value="100">Топ 100</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('createEntityModal')">Отмена</button>
+                <button class="btn btn-primary" onclick="createEntity()">Создать</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal" style="max-width: 550px;">
+            <h2>Настройки API</h2>
+
+            <!-- XMLStock Section -->
+            <div style="margin-bottom: 25px; padding-bottom: 20px; border-bottom: 1px solid var(--border-color);">
+                <h3 style="font-size: 1.1em; margin-bottom: 10px; color: var(--text-primary);">XMLStock API</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 0.85em;">
+                    Для парсинга результатов поиска.
+                    <a href="https://xmlstock.com" target="_blank" style="color: var(--accent-primary);">Получить ключ →</a>
+                </p>
+                <div id="apiStatus" style="padding: 10px; border-radius: 8px; margin-bottom: 15px;"></div>
+                <div id="xmlstockBalance" style="padding: 12px; border-radius: 8px; margin-bottom: 15px; background: var(--bg-tertiary); display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: var(--text-secondary); font-size: 0.85em;">Баланс:</span>
+                        <span id="xmlstockBalanceValue" style="font-size: 1.2em; font-weight: 600; color: var(--positive);">—</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.8em; color: var(--text-secondary);">
+                        <span>Расход сегодня: <span id="xmlstockOutgoDay">—</span></span>
+                        <span>За месяц: <span id="xmlstockOutgoMonth">—</span></span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>User ID</label>
+                    <input type="text" class="form-control" id="xmlstockUser" placeholder="Ваш User ID">
+                </div>
+                <div class="form-group">
+                    <label>API Key</label>
+                    <input type="password" class="form-control" id="xmlstockKey" placeholder="Ваш API ключ">
+                </div>
+            </div>
+
+            <!-- Claude AI Section -->
+            <div style="margin-bottom: 20px;">
+                <h3 style="font-size: 1.1em; margin-bottom: 10px; color: var(--text-primary);">Claude AI (Анализ тональности)</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 0.85em;">
+                    Для точного анализа тональности через AI.
+                    <a href="https://console.anthropic.com/" target="_blank" style="color: var(--accent-primary);">Консоль Anthropic →</a>
+                </p>
+                <div id="claudeStatus" style="padding: 10px; border-radius: 8px; margin-bottom: 15px;"></div>
+                <div id="claudeBalanceInfo" style="padding: 12px; border-radius: 8px; margin-bottom: 15px; background: var(--bg-tertiary); display: none;">
+                    <div style="font-size: 0.85em; color: var(--text-secondary);">
+                        <a href="https://console.anthropic.com/settings/billing" target="_blank" style="color: var(--accent-primary);">
+                            Проверить баланс в консоли Anthropic →
+                        </a>
+                    </div>
+                    <div style="margin-top: 8px; font-size: 0.75em; color: var(--text-muted);">
+                        Модель: Claude 3 Haiku (~$0.00025 за запрос)
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Claude API Key</label>
+                    <input type="password" class="form-control" id="claudeApiKey" placeholder="sk-ant-...">
+                </div>
+                <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" id="useClaudeAnalysis" style="width: auto;">
+                    <label for="useClaudeAnalysis" style="margin: 0; cursor: pointer;">Использовать Claude для анализа тональности</label>
+                </div>
+                <button class="btn btn-secondary" onclick="testClaudeApi()" style="margin-top: 10px;">
+                    Тестировать подключение
+                </button>
+                <div id="claudeTestResult" style="margin-top: 10px; font-size: 0.85em;"></div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('settingsModal')">Отмена</button>
+                <button class="btn btn-primary" onclick="saveSettings()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fullscreen Report Modal -->
+    <div class="fullscreen-overlay" id="fullscreenReport">
+        <div class="fullscreen-content">
+            <div class="fullscreen-header">
+                <div class="header-info">
+                    <h2 id="fullscreenTitle">Детальный отчет</h2>
+                    <span class="badge badge-region" id="fullscreenRegion"></span>
+                </div>
+                <button class="close-btn" onclick="closeFullscreenReport()">&times;</button>
+            </div>
+            <div class="tabs" id="fullscreenTabs">
+                <!-- Tabs will be generated dynamically -->
+            </div>
+            <div class="tab-content" id="fullscreenTabContent">
+                <!-- Tab content will be generated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3001/api';
+        let currentProject = null;
+        let currentEntity = null;
+        let regions = [];
+        let navigationHistory = [];
+        let historyIndex = -1;
+
+        // Background parsing state
+        let activeParsingTasks = new Map(); // taskId -> { interval, entityId }
+        let parsingPollingInterval = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Check server health first
+            const serverOk = await checkServerHealth();
+            if (!serverOk) {
+                showWelcome(); // Show welcome page but connection error will be visible
+                return;
+            }
+
+            await loadRegions();
+            await loadProjects();
+            showWelcome();
+
+            // Check for any running parsing tasks
+            await checkActiveParsingTasks();
+        });
+
+        // Load regions
+        async function loadRegions() {
+            try {
+                regions = await apiCall('/regions');
+            } catch (e) {
+                regions = [
+                    { code: 'ru', name: 'Россия' },
+                    { code: 'ru-msk', name: 'Москва' },
+                    { code: 'ru-spb', name: 'Санкт-Петербург' }
+                ];
+            }
+        }
+
+        // API Functions with improved error handling
+        async function apiCall(endpoint, method = 'GET', data = null) {
+            const options = {
+                method,
+                headers: { 'Content-Type': 'application/json' }
+            };
+            if (data) options.body = JSON.stringify(data);
+
+            try {
+                const response = await fetch(`${API_URL}${endpoint}`, options);
+
+                // Check if response is ok
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    const errorMessage = errorData.error || `Ошибка ${response.status}`;
+                    throw new Error(errorMessage);
+                }
+
+                return response.json();
+            } catch (error) {
+                // Network error - server not running
+                if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                    showConnectionError();
+                    throw new Error('Сервер недоступен. Проверьте, запущен ли backend.');
+                }
+
+                // Re-throw other errors
+                throw error;
+            }
+        }
+
+        // Show connection error notification
+        let connectionErrorShown = false;
+        function showConnectionError() {
+            if (connectionErrorShown) return;
+            connectionErrorShown = true;
+
+            const notification = document.createElement('div');
+            notification.id = 'connectionError';
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: linear-gradient(135deg, #ff6b6b, #ee5a5a);
+                color: white;
+                padding: 15px 25px;
+                border-radius: 10px;
+                z-index: 10000;
+                box-shadow: 0 5px 20px rgba(255, 107, 107, 0.4);
+                animation: slideIn 0.3s ease;
+            `;
+            notification.innerHTML = `
+                <div style="font-weight: bold; margin-bottom: 5px;">Ошибка подключения</div>
+                <div style="font-size: 0.9em;">Сервер недоступен. Запустите backend командой:</div>
+                <code style="display: block; margin-top: 8px; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 5px; font-size: 0.85em;">
+                    cd backend && node server.js
+                </code>
+                <button onclick="retryConnection()" style="
+                    margin-top: 10px;
+                    padding: 8px 15px;
+                    background: white;
+                    color: #ff6b6b;
+                    border: none;
+                    border-radius: 5px;
+                    cursor: pointer;
+                    font-weight: bold;
+                ">Повторить</button>
+            `;
+            document.body.appendChild(notification);
+        }
+
+        // Retry connection
+        async function retryConnection() {
+            try {
+                await fetch(`${API_URL}/health`);
+                document.getElementById('connectionError')?.remove();
+                connectionErrorShown = false;
+                location.reload();
+            } catch (e) {
+                alert('Сервер всё ещё недоступен');
+            }
+        }
+
+        // Check server health on load
+        async function checkServerHealth() {
+            try {
+                const health = await fetch(`${API_URL}/health`);
+                if (!health.ok) throw new Error('Server error');
+                return true;
+            } catch (e) {
+                showConnectionError();
+                return false;
+            }
+        }
+
+        // Navigation Functions
+        function navigateTo(view, params = {}, addToHistory = true) {
+            if (addToHistory) {
+                // Remove forward history when navigating to new page
+                navigationHistory = navigationHistory.slice(0, historyIndex + 1);
+                navigationHistory.push({ view, params });
+                historyIndex = navigationHistory.length - 1;
+            }
+
+            switch (view) {
+                case 'welcome':
+                    showWelcome();
+                    break;
+                case 'project':
+                    showProjectView();
+                    break;
+                case 'entity':
+                    showEntityView();
+                    break;
+            }
+        }
+
+        function goBack() {
+            if (historyIndex > 0) {
+                historyIndex--;
+                const { view, params } = navigationHistory[historyIndex];
+
+                if (view === 'entity' && params.entityId) {
+                    currentEntity = currentProject.entities.find(e => e.id === params.entityId);
+                }
+
+                navigateTo(view, params, false);
+            }
+        }
+
+        function goForward() {
+            if (historyIndex < navigationHistory.length - 1) {
+                historyIndex++;
+                const { view, params } = navigationHistory[historyIndex];
+
+                if (view === 'entity' && params.entityId) {
+                    currentEntity = currentProject.entities.find(e => e.id === params.entityId);
+                }
+
+                navigateTo(view, params, false);
+            }
+        }
+
+        function canGoBack() {
+            return historyIndex > 0;
+        }
+
+        function canGoForward() {
+            return historyIndex < navigationHistory.length - 1;
+        }
+
+        // Load Projects
+        async function loadProjects() {
+            const projects = await apiCall('/projects');
+            const list = document.getElementById('projectList');
+
+            list.innerHTML = projects.map(p => `
+                <li class="project-item ${currentProject?.id === p.id ? 'active' : ''}" onclick="selectProject('${p.id}')">
+                    <span class="name">${p.name}</span>
+                    <button class="delete-btn" onclick="event.stopPropagation(); deleteProject('${p.id}')">✕</button>
+                </li>
+            `).join('');
+        }
+
+        // Select Project
+        async function selectProject(projectId) {
+            currentProject = await apiCall(`/projects/${projectId}`);
+            currentEntity = null;
+            loadProjects();
+            navigateTo('project');
+        }
+
+        // Create Project
+        async function createProject() {
+            const name = document.getElementById('projectName').value.trim();
+            if (!name) return alert('Введите название проекта');
+
+            await apiCall('/projects', 'POST', { name });
+            document.getElementById('projectName').value = '';
+            closeModal('createProjectModal');
+            loadProjects();
+        }
+
+        // Delete Project
+        async function deleteProject(projectId) {
+            if (!confirm('Удалить проект и все его данные?')) return;
+
+            await apiCall(`/projects/${projectId}`, 'DELETE');
+            if (currentProject?.id === projectId) {
+                currentProject = null;
+                navigateTo('welcome');
+            }
+            loadProjects();
+        }
+
+        // Create Entity
+        async function createEntity() {
+            const name = document.getElementById('entityName').value.trim();
+            if (!name) return alert('Введите ключевой запрос');
+
+            const engines = [];
+            if (document.getElementById('engineGoogle').checked) engines.push('google');
+            if (document.getElementById('engineYandex').checked) engines.push('yandex');
+
+            if (engines.length === 0) return alert('Выберите хотя бы одну поисковую систему');
+
+            const depth = parseInt(document.getElementById('entityDepth').value);
+
+            await apiCall(`/projects/${currentProject.id}/entities`, 'POST', { name, engines, depth });
+            document.getElementById('entityName').value = '';
+            closeModal('createEntityModal');
+            selectProject(currentProject.id);
+        }
+
+        // Delete Entity
+        async function deleteEntity(entityId) {
+            if (!confirm('Удалить запрос и все его данные?')) return;
+
+            await apiCall(`/projects/${currentProject.id}/entities/${entityId}`, 'DELETE');
+            selectProject(currentProject.id);
+        }
+
+        // Update entity depth
+        async function updateEntityDepth(entityId, depth) {
+            try {
+                await apiCall(`/projects/${currentProject.id}/entities/${entityId}`, 'PATCH', { depth: parseInt(depth) });
+                currentProject = await apiCall(`/projects/${currentProject.id}`);
+                currentEntity = currentProject.entities.find(e => e.id === entityId);
+                // Update header info without full re-render
+                const headerInfo = document.querySelector('.page-header p');
+                if (headerInfo) {
+                    headerInfo.innerHTML = `
+                        ${currentEntity.engines.map(e => e === 'google' ? '<span class="badge badge-google">Google</span>' : '<span class="badge badge-yandex">Яндекс</span>').join(' ')}
+                        | Глубина: Топ ${currentEntity.depth}
+                    `;
+                }
+            } catch (error) {
+                alert('Ошибка при обновлении глубины');
+            }
+        }
+
+        // Update entity engines
+        async function updateEntityEngines(entityId) {
+            const engines = [];
+            if (document.getElementById('parseGoogle')?.checked) engines.push('google');
+            if (document.getElementById('parseYandex')?.checked) engines.push('yandex');
+
+            if (engines.length === 0) {
+                alert('Выберите хотя бы одну поисковую систему');
+                // Restore previous state
+                showEntityView();
+                return;
+            }
+
+            try {
+                await apiCall(`/projects/${currentProject.id}/entities/${entityId}`, 'PATCH', { engines });
+                currentProject = await apiCall(`/projects/${currentProject.id}`);
+                currentEntity = currentProject.entities.find(e => e.id === entityId);
+                // Update header info without full re-render
+                const headerInfo = document.querySelector('.page-header p');
+                if (headerInfo) {
+                    headerInfo.innerHTML = `
+                        ${currentEntity.engines.map(e => e === 'google' ? '<span class="badge badge-google">Google</span>' : '<span class="badge badge-yandex">Яндекс</span>').join(' ')}
+                        | Глубина: Топ ${currentEntity.depth}
+                    `;
+                }
+            } catch (error) {
+                alert('Ошибка при обновлении поисковых систем');
+            }
+        }
+
+        // Run Parsing with region (background mode)
+        async function runParsingWithRegion(entityId) {
+            const regionSelect = document.getElementById('parsingRegion');
+            const region = regionSelect ? regionSelect.value : 'ru';
+            const btn = document.getElementById('runParsingBtn');
+
+            btn.disabled = true;
+            btn.textContent = 'Запуск...';
+
+            try {
+                // Start background parsing
+                const response = await apiCall(`/projects/${currentProject.id}/entities/${entityId}/parse-background`, 'POST', { region });
+
+                if (response.alreadyRunning) {
+                    showToast('info', 'Парсинг уже запущен', 'Дождитесь завершения текущего парсинга');
+                    btn.disabled = false;
+                    btn.textContent = 'Запустить парсинг';
+                    return;
+                }
+
+                // Start polling for this task
+                startParsingPolling(response.taskId, entityId);
+
+                showToast('info', 'Парсинг запущен', 'Можете продолжать работу, результат появится автоматически');
+
+                // Update button to show it's running
+                btn.textContent = 'Парсинг запущен...';
+
+                // Show progress in entity view
+                showEntityParsingProgress(response.taskId);
+
+            } catch (error) {
+                showToast('error', 'Ошибка', 'Не удалось запустить парсинг');
+                btn.disabled = false;
+                btn.textContent = 'Запустить парсинг';
+            }
+        }
+
+        // Start polling for parsing task
+        function startParsingPolling(taskId, entityId) {
+            // Store task info
+            activeParsingTasks.set(taskId, { entityId, startedAt: Date.now() });
+
+            // Poll every 2 seconds
+            const pollInterval = setInterval(async () => {
+                try {
+                    const task = await apiCall(`/parsing-tasks/${taskId}`);
+
+                    // Update progress UI (entity view)
+                    updateParsingProgress(taskId, task);
+                    // Update progress in entity card (project view)
+                    updateEntityCardProgress(entityId, task);
+                    updateGlobalParsingIndicator();
+
+                    if (task.status === 'completed') {
+                        clearInterval(pollInterval);
+                        activeParsingTasks.delete(taskId);
+
+                        showToast('success', 'Парсинг завершен', task.entityName || 'Результаты готовы');
+
+                        // Hide card parsing status
+                        hideEntityCardParsingStatus(entityId);
+
+                        // Refresh data if we're still on the same entity
+                        if (currentEntity && currentEntity.id === entityId) {
+                            currentProject = await apiCall(`/projects/${currentProject.id}`);
+                            currentEntity = currentProject.entities.find(e => e.id === entityId);
+                            showEntityView();
+                        } else if (currentProject) {
+                            // Refresh project view to update card
+                            currentProject = await apiCall(`/projects/${currentProject.id}`);
+                            showProjectView();
+                        }
+
+                        updateGlobalParsingIndicator();
+
+                    } else if (task.status === 'error') {
+                        clearInterval(pollInterval);
+                        activeParsingTasks.delete(taskId);
+
+                        showToast('error', 'Ошибка парсинга', task.error || 'Неизвестная ошибка');
+
+                        // Hide card parsing status
+                        hideEntityCardParsingStatus(entityId);
+
+                        // Reset button if on same entity
+                        if (currentEntity && currentEntity.id === entityId) {
+                            const btn = document.getElementById('runParsingBtn');
+                            if (btn) {
+                                btn.disabled = false;
+                                btn.textContent = 'Запустить парсинг';
+                            }
+                        }
+
+                        updateGlobalParsingIndicator();
+                    }
+                } catch (error) {
+                    // Task expired or error
+                    clearInterval(pollInterval);
+                    activeParsingTasks.delete(taskId);
+                    hideEntityCardParsingStatus(entityId);
+                    updateGlobalParsingIndicator();
+                }
+            }, 2000);
+
+            // Store interval for cleanup
+            const taskInfo = activeParsingTasks.get(taskId);
+            if (taskInfo) {
+                taskInfo.interval = pollInterval;
+            }
+        }
+
+        // Hide parsing status in entity card
+        function hideEntityCardParsingStatus(entityId) {
+            const cardEl = document.getElementById(`entity-card-${entityId}`);
+            const statusEl = document.getElementById(`card-parsing-${entityId}`);
+
+            if (cardEl) {
+                cardEl.classList.remove('parsing-active');
+            }
+            if (statusEl) {
+                statusEl.style.display = 'none';
+            }
+
+            // Reset parse button
+            updateCardParseButton(entityId, false);
+        }
+
+        // Show parsing progress in entity view
+        function showEntityParsingProgress(taskId) {
+            const progressContainer = document.getElementById('parsingProgressContainer');
+            if (!progressContainer) return;
+
+            progressContainer.innerHTML = `
+                <div class="parsing-progress" id="progress-${taskId}">
+                    <div class="progress-header">
+                        <span class="progress-title">Парсинг выполняется</span>
+                        <span class="progress-percent">0%</span>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar-fill" style="width: 0%"></div>
+                    </div>
+                    <div class="progress-status">Инициализация...</div>
+                </div>
+            `;
+        }
+
+        // Update parsing progress UI
+        function updateParsingProgress(taskId, task) {
+            const progressEl = document.getElementById(`progress-${taskId}`);
+            if (!progressEl) return;
+
+            const percentEl = progressEl.querySelector('.progress-percent');
+            const barEl = progressEl.querySelector('.progress-bar-fill');
+            const statusEl = progressEl.querySelector('.progress-status');
+            const titleEl = progressEl.querySelector('.progress-title');
+
+            if (percentEl) percentEl.textContent = `${task.progress}%`;
+            if (barEl) barEl.style.width = `${task.progress}%`;
+            if (statusEl) statusEl.textContent = task.currentStep;
+
+            if (task.status === 'completed') {
+                progressEl.classList.add('completed');
+                if (titleEl) titleEl.textContent = 'Парсинг завершен';
+            } else if (task.status === 'error') {
+                progressEl.classList.add('error');
+                if (titleEl) titleEl.textContent = 'Ошибка парсинга';
+            }
+        }
+
+        // Global parsing indicator (shows even when navigating away)
+        function updateGlobalParsingIndicator() {
+            let indicator = document.getElementById('globalParsingIndicator');
+
+            if (activeParsingTasks.size === 0) {
+                if (indicator) indicator.remove();
+                return;
+            }
+
+            if (!indicator) {
+                indicator = document.createElement('div');
+                indicator.id = 'globalParsingIndicator';
+                indicator.className = 'global-parsing-indicator';
+                document.body.appendChild(indicator);
+            }
+
+            // Get first active task for display
+            const [taskId, taskInfo] = activeParsingTasks.entries().next().value;
+            const taskCount = activeParsingTasks.size;
+
+            indicator.innerHTML = `
+                <div class="indicator-header">
+                    <span class="indicator-title">
+                        Парсинг${taskCount > 1 ? ` (${taskCount})` : ''}
+                    </span>
+                    <span id="globalProgress">0%</span>
+                </div>
+                <div class="indicator-progress">
+                    <div class="indicator-progress-fill" id="globalProgressBar" style="width: 0%"></div>
+                </div>
+                <div class="indicator-status" id="globalStatus">Загрузка...</div>
+            `;
+
+            // Fetch and update progress
+            updateGlobalIndicatorProgress();
+        }
+
+        async function updateGlobalIndicatorProgress() {
+            if (activeParsingTasks.size === 0) return;
+
+            try {
+                const tasks = await apiCall('/parsing-tasks');
+                const runningTasks = tasks.filter(t => t.status === 'running');
+
+                if (runningTasks.length === 0) return;
+
+                // Show first running task
+                const task = runningTasks[0];
+
+                const progressEl = document.getElementById('globalProgress');
+                const barEl = document.getElementById('globalProgressBar');
+                const statusEl = document.getElementById('globalStatus');
+
+                if (progressEl) progressEl.textContent = `${task.progress}%`;
+                if (barEl) barEl.style.width = `${task.progress}%`;
+                if (statusEl) statusEl.textContent = task.currentStep;
+            } catch (e) {
+                // Ignore errors
+            }
+        }
+
+        // Toast notifications
+        function showToast(type, title, message) {
+            let container = document.getElementById('toastContainer');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toastContainer';
+                container.className = 'toast-container';
+                document.body.appendChild(container);
+            }
+
+            const icons = {
+                success: '✓',
+                error: '✕',
+                info: 'ℹ'
+            };
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <span class="toast-icon">${icons[type] || 'ℹ'}</span>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                </div>
+                <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+            `;
+
+            container.appendChild(toast);
+
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.remove();
+                }
+            }, 5000);
+        }
+
+        // Check for active parsing tasks on page load
+        async function checkActiveParsingTasks() {
+            try {
+                const tasks = await apiCall('/parsing-tasks');
+                for (const task of tasks) {
+                    if (task.status === 'running' && !activeParsingTasks.has(task.taskId)) {
+                        startParsingPolling(task.taskId, task.entityId);
+                    }
+                }
+                updateGlobalParsingIndicator();
+            } catch (e) {
+                // Ignore errors
+            }
+        }
+
+        // Delete parsing from history
+        async function deleteParsing(parsingId) {
+            if (!confirm('Удалить этот парсинг из истории?')) return;
+
+            try {
+                await apiCall(`/projects/${currentProject.id}/entities/${currentEntity.id}/parsings/${parsingId}`, 'DELETE');
+                currentProject = await apiCall(`/projects/${currentProject.id}`);
+                currentEntity = currentProject.entities.find(e => e.id === currentEntity.id);
+                showEntityView();
+            } catch (error) {
+                alert('Ошибка при удалении парсинга');
+            }
+        }
+
+        // View Entity
+        async function viewEntity(entityId) {
+            currentEntity = await apiCall(`/projects/${currentProject.id}/entities/${entityId}`);
+            navigateTo('entity', { entityId });
+        }
+
+        // Modal Functions
+        function showCreateProjectModal() {
+            document.getElementById('createProjectModal').classList.add('active');
+        }
+
+        function showCreateEntityModal() {
+            document.getElementById('createEntityModal').classList.add('active');
+        }
+
+        async function showSettingsModal() {
+            document.getElementById('settingsModal').classList.add('active');
+            document.getElementById('claudeTestResult').innerHTML = '';
+
+            // Load XMLStock config
+            try {
+                const config = await apiCall('/config');
+                const statusEl = document.getElementById('apiStatus');
+                const balanceEl = document.getElementById('xmlstockBalance');
+
+                if (config.xmlstock?.keySet) {
+                    statusEl.innerHTML = `
+                        <div style="color: var(--positive);">
+                            ✓ API настроен (User: ${config.xmlstock.user}, Key: ${config.xmlstock.keyPreview})
+                        </div>
+                    `;
+                    statusEl.style.background = 'rgba(0, 210, 106, 0.1)';
+                    document.getElementById('xmlstockUser').value = config.xmlstock.user;
+
+                    // Load XMLStock balance
+                    loadXmlStockBalance();
+                } else {
+                    statusEl.innerHTML = `
+                        <div style="color: var(--negative);">
+                            ✗ API не настроен. Парсинг не будет работать.
+                        </div>
+                    `;
+                    statusEl.style.background = 'rgba(255, 107, 107, 0.1)';
+                    balanceEl.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error loading config:', error);
+            }
+
+            // Load Claude config
+            try {
+                const claudeConfig = await apiCall('/config/claude');
+                const claudeStatusEl = document.getElementById('claudeStatus');
+                const claudeBalanceEl = document.getElementById('claudeBalanceInfo');
+
+                if (claudeConfig.keySet) {
+                    claudeStatusEl.innerHTML = `
+                        <div style="color: var(--positive);">
+                            ✓ Claude API настроен (Key: ${claudeConfig.keyPreview})
+                        </div>
+                    `;
+                    claudeStatusEl.style.background = 'rgba(0, 210, 106, 0.1)';
+                    claudeBalanceEl.style.display = 'block';
+                } else {
+                    claudeStatusEl.innerHTML = `
+                        <div style="color: var(--text-secondary);">
+                            Claude API не настроен. Будет использоваться локальный анализ.
+                        </div>
+                    `;
+                    claudeStatusEl.style.background = 'rgba(128, 128, 128, 0.1)';
+                    claudeBalanceEl.style.display = 'none';
+                }
+
+                document.getElementById('useClaudeAnalysis').checked = claudeConfig.useClaude || false;
+            } catch (error) {
+                console.error('Error loading Claude config:', error);
+            }
+        }
+
+        async function loadXmlStockBalance() {
+            const balanceEl = document.getElementById('xmlstockBalance');
+            const balanceValue = document.getElementById('xmlstockBalanceValue');
+            const outgoDay = document.getElementById('xmlstockOutgoDay');
+            const outgoMonth = document.getElementById('xmlstockOutgoMonth');
+
+            balanceEl.style.display = 'block';
+            balanceValue.textContent = 'Загрузка...';
+            balanceValue.style.color = 'var(--text-secondary)';
+
+            try {
+                const data = await apiCall('/config/xmlstock/balance');
+                balanceValue.textContent = `${data.balance.toFixed(2)} ${data.currency}`;
+                balanceValue.style.color = data.balance > 100 ? 'var(--positive)' : (data.balance > 20 ? 'var(--warning, #ffa500)' : 'var(--negative)');
+                outgoDay.textContent = `${data.outgoDay.toFixed(2)} ${data.currency}`;
+                outgoMonth.textContent = `${data.outgoMonth.toFixed(2)} ${data.currency}`;
+            } catch (error) {
+                balanceValue.textContent = 'Ошибка загрузки';
+                balanceValue.style.color = 'var(--negative)';
+                console.error('Error loading XMLStock balance:', error);
+            }
+        }
+
+        async function saveSettings() {
+            const user = document.getElementById('xmlstockUser').value.trim();
+            const key = document.getElementById('xmlstockKey').value.trim();
+            const claudeApiKey = document.getElementById('claudeApiKey').value.trim();
+            const useClaude = document.getElementById('useClaudeAnalysis').checked;
+
+            try {
+                // Save XMLStock settings if provided
+                if (user && key) {
+                    await apiCall('/config', 'POST', { user, key });
+                }
+
+                // Save Claude settings
+                const claudeData = { useClaude };
+                if (claudeApiKey) {
+                    claudeData.apiKey = claudeApiKey;
+                }
+                await apiCall('/config/claude', 'POST', claudeData);
+
+                alert('Настройки сохранены!');
+                closeModal('settingsModal');
+            } catch (error) {
+                alert('Ошибка сохранения настроек: ' + error.message);
+            }
+        }
+
+        async function testClaudeApi() {
+            const resultEl = document.getElementById('claudeTestResult');
+            resultEl.innerHTML = '<span style="color: var(--text-secondary);">Тестирование...</span>';
+
+            try {
+                const result = await apiCall('/config/claude/test', 'POST');
+                resultEl.innerHTML = `
+                    <div style="color: var(--positive);">
+                        ✓ ${result.message}<br>
+                        <small>Тест: "${result.testResult.sentiment}" (уверенность: ${Math.round(result.testResult.confidence * 100)}%)</small><br>
+                        <small>${result.testResult.explanation}</small>
+                    </div>
+                `;
+            } catch (error) {
+                resultEl.innerHTML = `
+                    <div style="color: var(--negative);">
+                        ✗ Ошибка: ${error.message || 'Не удалось подключиться к Claude API'}
+                    </div>
+                `;
+            }
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        // Get sentiment color class
+        function getSentimentClass(sentiment) {
+            return sentiment === 'positive' ? 'positive' :
+                   sentiment === 'negative' ? 'negative' : 'neutral';
+        }
+
+        // Get sentiment label
+        function getSentimentLabel(sentiment) {
+            return sentiment === 'positive' ? 'Позитив' :
+                   sentiment === 'negative' ? 'Негатив' : 'Нейтрал';
+        }
+
+        // Get rating color with gradient (0=red, 50=yellow, 100=green)
+        function getRatingColor(rating) {
+            const value = parseFloat(rating) || 50;
+            // Clamp to 0-100
+            const clamped = Math.max(0, Math.min(100, value));
+
+            let r, g, b;
+            if (clamped < 50) {
+                // Red to Yellow (0-50)
+                const t = clamped / 50;
+                r = 255;
+                g = Math.round(180 * t);
+                b = 50;
+            } else {
+                // Yellow to Green (50-100)
+                const t = (clamped - 50) / 50;
+                r = Math.round(255 * (1 - t));
+                g = Math.round(180 + 30 * t);
+                b = Math.round(50 + 56 * t);
+            }
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+
+        // Format rating display (converts old balance -100..100 to new rating 0..100)
+        function formatRating(metrics) {
+            // If rating exists, use it directly (new format 0-100)
+            if (metrics?.rating !== undefined) {
+                return Math.round(parseFloat(metrics.rating));
+            }
+            // Convert old balance (-100..100) to new rating (0..100)
+            if (metrics?.balance !== undefined) {
+                const oldBalance = parseFloat(metrics.balance);
+                const newRating = (oldBalance + 100) / 2;
+                return Math.round(newRating);
+            }
+            return 50; // default
+        }
+
+        // Get rating value for color calculation (handles both old and new formats)
+        function getRatingValue(metrics) {
+            if (metrics?.rating !== undefined) {
+                return parseFloat(metrics.rating);
+            }
+            if (metrics?.balance !== undefined) {
+                return (parseFloat(metrics.balance) + 100) / 2;
+            }
+            return 50;
+        }
+
+        // Render navigation bar
+        function renderNavBar(breadcrumbs = []) {
+            return `
+                <div class="nav-bar">
+                    <div class="nav-buttons">
+                        <button class="nav-btn" onclick="goBack()" ${!canGoBack() ? 'disabled' : ''} title="Назад">&#8592;</button>
+                        <button class="nav-btn" onclick="goForward()" ${!canGoForward() ? 'disabled' : ''} title="Вперед">&#8594;</button>
+                    </div>
+                    <div class="breadcrumb">
+                        ${breadcrumbs.map((b, i) => `
+                            ${i > 0 ? '<span class="separator">›</span>' : ''}
+                            ${b.link ? `<a href="#" onclick="${b.link}; return false;">${b.label}</a>` : `<span>${b.label}</span>`}
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // View Functions
+        function showWelcome() {
+            document.getElementById('mainContent').innerHTML = `
+                <div class="empty-state">
+                    <div class="icon">📊</div>
+                    <h3>Добро пожаловать в SERM Monitor</h3>
+                    <p>Создайте проект для начала мониторинга репутации</p>
+                    <br>
+                    <button class="btn btn-primary" onclick="showCreateProjectModal()">Создать проект</button>
+                </div>
+            `;
+        }
+
+        function showProjectView() {
+            document.getElementById('mainContent').innerHTML = `
+                ${renderNavBar([
+                    { label: currentProject.name }
+                ])}
+
+                <div class="page-header">
+                    <h1>${currentProject.name}</h1>
+                    <p>Создан: ${new Date(currentProject.createdAt).toLocaleDateString('ru-RU')}</p>
+                </div>
+
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3>Запросы для мониторинга</h3>
+                        <button class="btn btn-primary btn-sm" onclick="showCreateEntityModal()">+ Добавить запрос</button>
+                    </div>
+
+                    ${currentProject.entities.length === 0 ? `
+                        <div class="empty-state">
+                            <p>Нет запросов. Добавьте первый запрос для мониторинга.</p>
+                        </div>
+                    ` : `
+                        <div class="grid grid-3">
+                            ${currentProject.entities.map(entity => renderEntityCard(entity)).join('')}
+                        </div>
+                    `}
+                </div>
+            `;
+
+            // Update entity cards with parsing status
+            updateEntityCardsParsingStatus();
+        }
+
+        // Render single entity card
+        function renderEntityCard(entity) {
+            const latest = entity.parsings[entity.parsings.length - 1];
+            const previous = entity.parsings.length > 1 ? entity.parsings[entity.parsings.length - 2] : null;
+            const googleMetrics = latest?.engines?.google?.metrics;
+            const yandexMetrics = latest?.engines?.yandex?.metrics;
+            const isParsingActive = isEntityParsing(entity.id);
+
+            // Calculate changes compared to previous parsing
+            const currentMetrics = googleMetrics || yandexMetrics;
+            const prevGoogleMetrics = previous?.engines?.google?.metrics;
+            const prevYandexMetrics = previous?.engines?.yandex?.metrics;
+            const prevMetrics = prevGoogleMetrics || prevYandexMetrics;
+
+            let positiveDiff = null, negativeDiff = null, ratingDiff = null;
+            if (currentMetrics && prevMetrics) {
+                const currPositive = parseFloat(currentMetrics.positivePercent) || 0;
+                const prevPositive = parseFloat(prevMetrics.positivePercent) || 0;
+                positiveDiff = currPositive - prevPositive;
+
+                const currNegative = parseFloat(currentMetrics.negativePercent) || 0;
+                const prevNegative = parseFloat(prevMetrics.negativePercent) || 0;
+                negativeDiff = currNegative - prevNegative;
+
+                const currRating = formatRating(currentMetrics);
+                const prevRating = formatRating(prevMetrics);
+                ratingDiff = currRating - prevRating;
+            }
+
+            // Format diff with arrow and color
+            function formatDiff(diff, invert = false) {
+                if (diff === null || diff === 0) return '';
+                const isPositive = invert ? diff < 0 : diff > 0;
+                const arrow = diff > 0 ? '↑' : '↓';
+                const color = isPositive ? 'var(--positive)' : 'var(--negative)';
+                return `<span style="font-size: 10px; color: ${color}; margin-left: 3px;">${arrow}${Math.abs(diff).toFixed(1)}</span>`;
+            }
+
+            return `
+                <div class="entity-card ${isParsingActive ? 'parsing-active' : ''}"
+                     id="entity-card-${entity.id}"
+                     onclick="viewEntity('${entity.id}')">
+                    <div class="card-header">
+                        <h4>${entity.name}</h4>
+                        ${isParsingActive ? `
+                            <span class="parsing-badge">
+                                <span class="mini-spinner"></span>
+                                Парсинг
+                            </span>
+                        ` : ''}
+                    </div>
+                    <div class="meta">
+                        Глубина: Топ ${entity.depth} | Парсингов: ${entity.parsings.length}
+                    </div>
+                    <div class="engines">
+                        ${entity.engines.includes('google') ? '<span class="badge badge-google">Google</span>' : ''}
+                        ${entity.engines.includes('yandex') ? '<span class="badge badge-yandex">Яндекс</span>' : ''}
+                    </div>
+
+                    <!-- Parsing progress inside card -->
+                    <div class="card-parsing-status" id="card-parsing-${entity.id}" style="display: ${isParsingActive ? 'block' : 'none'};">
+                        <div class="parsing-status">
+                            <div class="spinner"></div>
+                            <span class="status-text">Загрузка...</span>
+                            <span class="status-percent">0%</span>
+                        </div>
+                        <div class="mini-progress">
+                            <div class="mini-progress-fill" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    ${latest ? `
+                        <div class="last-parsing-date" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 10px;">
+                            Последний парсинг: ${new Date(latest.date).toLocaleString('ru-RU')}
+                        </div>
+                        <div class="stats">
+                            <div class="stat">
+                                <div class="value" style="color: var(--positive)">${googleMetrics?.positivePercent || yandexMetrics?.positivePercent || 0}%${formatDiff(positiveDiff)}</div>
+                                <div class="label">Позитив</div>
+                            </div>
+                            <div class="stat">
+                                <div class="value" style="color: var(--negative)">${googleMetrics?.negativePercent || yandexMetrics?.negativePercent || 0}%${formatDiff(negativeDiff, true)}</div>
+                                <div class="label">Негатив</div>
+                            </div>
+                            <div class="stat">
+                                <div class="value" style="color: ${getRatingColor(getRatingValue(googleMetrics || yandexMetrics))}">${formatRating(googleMetrics || yandexMetrics)}${formatDiff(ratingDiff)}</div>
+                                <div class="label">Оценка</div>
+                            </div>
+                        </div>
+                    ` : `
+                        <div class="stats">
+                            <div style="width: 100%; text-align: center; color: var(--text-secondary);">
+                                Нет данных
+                            </div>
+                        </div>
+                    `}
+
+                    <!-- Parse button -->
+                    <div class="card-actions">
+                        <button class="btn-parse"
+                                id="btn-parse-${entity.id}"
+                                onclick="event.stopPropagation(); startCardParsing('${entity.id}')"
+                                ${isParsingActive ? 'disabled' : ''}>
+                            ${isParsingActive ? `
+                                <span class="btn-spinner"></span>
+                                Парсинг...
+                            ` : `
+                                <span>▶</span>
+                                Запустить парсинг
+                            `}
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Check if entity is currently parsing
+        function isEntityParsing(entityId) {
+            for (const [taskId, taskInfo] of activeParsingTasks) {
+                if (taskInfo.entityId === entityId) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Update entity cards with parsing status
+        function updateEntityCardsParsingStatus() {
+            for (const [taskId, taskInfo] of activeParsingTasks) {
+                const cardEl = document.getElementById(`entity-card-${taskInfo.entityId}`);
+                const statusEl = document.getElementById(`card-parsing-${taskInfo.entityId}`);
+
+                if (cardEl && !cardEl.classList.contains('parsing-active')) {
+                    cardEl.classList.add('parsing-active');
+                }
+
+                if (statusEl) {
+                    statusEl.style.display = 'block';
+                    // Fetch current status
+                    apiCall(`/parsing-tasks/${taskId}`).then(task => {
+                        updateEntityCardProgress(taskInfo.entityId, task);
+                    }).catch(() => {});
+                }
+            }
+        }
+
+        // Update progress in entity card
+        function updateEntityCardProgress(entityId, task) {
+            const statusEl = document.getElementById(`card-parsing-${entityId}`);
+            if (!statusEl) return;
+
+            const textEl = statusEl.querySelector('.status-text');
+            const percentEl = statusEl.querySelector('.status-percent');
+            const barEl = statusEl.querySelector('.mini-progress-fill');
+
+            if (textEl) textEl.textContent = task.currentStep || 'Загрузка...';
+            if (percentEl) percentEl.textContent = `${task.progress}%`;
+            if (barEl) barEl.style.width = `${task.progress}%`;
+        }
+
+        // Start parsing from entity card
+        async function startCardParsing(entityId) {
+            const btn = document.getElementById(`btn-parse-${entityId}`);
+            const cardEl = document.getElementById(`entity-card-${entityId}`);
+            const statusEl = document.getElementById(`card-parsing-${entityId}`);
+
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<span class="btn-spinner"></span> Запуск...';
+            }
+
+            try {
+                const response = await apiCall(`/projects/${currentProject.id}/entities/${entityId}/parse-background`, 'POST', { region: 'ru' });
+
+                if (response.alreadyRunning) {
+                    showToast('info', 'Парсинг уже запущен', 'Дождитесь завершения текущего парсинга');
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = '<span>▶</span> Запустить парсинг';
+                    }
+                    return;
+                }
+
+                // Update card UI
+                if (cardEl) cardEl.classList.add('parsing-active');
+                if (statusEl) statusEl.style.display = 'block';
+                if (btn) btn.innerHTML = '<span class="btn-spinner"></span> Парсинг...';
+
+                // Start polling
+                startParsingPolling(response.taskId, entityId);
+
+                showToast('info', 'Парсинг запущен', 'Можете продолжать работу');
+
+            } catch (error) {
+                showToast('error', 'Ошибка', 'Не удалось запустить парсинг');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<span>▶</span> Запустить парсинг';
+                }
+            }
+        }
+
+        // Update card button after parsing completes
+        function updateCardParseButton(entityId, isActive) {
+            const btn = document.getElementById(`btn-parse-${entityId}`);
+            if (!btn) return;
+
+            btn.disabled = isActive;
+            btn.innerHTML = isActive
+                ? '<span class="btn-spinner"></span> Парсинг...'
+                : '<span>▶</span> Запустить парсинг';
+        }
+
+        function showEntityView() {
+            const latest = currentEntity.parsings[currentEntity.parsings.length - 1];
+
+            document.getElementById('mainContent').innerHTML = `
+                ${renderNavBar([
+                    { label: currentProject.name, link: `selectProject('${currentProject.id}')` },
+                    { label: currentEntity.name }
+                ])}
+
+                <div class="page-header">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h1>${currentEntity.name}</h1>
+                            <p>
+                                ${currentEntity.engines.map(e => e === 'google' ? '<span class="badge badge-google">Google</span>' : '<span class="badge badge-yandex">Яндекс</span>').join(' ')}
+                                | Глубина: Топ ${currentEntity.depth}
+                            </p>
+                        </div>
+                        <button class="btn btn-danger btn-sm" onclick="deleteEntity('${currentEntity.id}')">Удалить</button>
+                    </div>
+                </div>
+
+                <!-- Parsing Controls -->
+                <div class="parsing-controls">
+                    <div class="form-group">
+                        <label>Регион поиска</label>
+                        <select class="form-control" id="parsingRegion">
+                            ${regions.map(r => `<option value="${r.code}">${r.name}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Глубина парсинга</label>
+                        <select class="form-control" id="parsingDepth" onchange="updateEntityDepth('${currentEntity.id}', this.value)">
+                            <option value="10" ${currentEntity.depth === 10 ? 'selected' : ''}>Топ 10</option>
+                            <option value="20" ${currentEntity.depth === 20 ? 'selected' : ''}>Топ 20</option>
+                            <option value="50" ${currentEntity.depth === 50 ? 'selected' : ''}>Топ 50</option>
+                            <option value="100" ${currentEntity.depth === 100 ? 'selected' : ''}>Топ 100</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Поисковые системы</label>
+                        <div class="checkbox-group" style="padding-top: 8px;">
+                            <label class="checkbox-item">
+                                <input type="checkbox" id="parseGoogle" ${currentEntity.engines.includes('google') ? 'checked' : ''}
+                                    onchange="updateEntityEngines('${currentEntity.id}')">
+                                <span>Google</span>
+                            </label>
+                            <label class="checkbox-item">
+                                <input type="checkbox" id="parseYandex" ${currentEntity.engines.includes('yandex') ? 'checked' : ''}
+                                    onchange="updateEntityEngines('${currentEntity.id}')">
+                                <span>Яндекс</span>
+                            </label>
+                        </div>
+                    </div>
+                    <button class="btn btn-success" id="runParsingBtn" onclick="runParsingWithRegion('${currentEntity.id}')">
+                        Запустить парсинг
+                    </button>
+                </div>
+
+                <!-- Progress container for active parsing -->
+                <div id="parsingProgressContainer"></div>
+
+                ${latest ? renderParsingResults(latest) : `
+                    <div class="card">
+                        <div class="empty-state">
+                            <div class="icon">🔍</div>
+                            <h3>Нет данных парсинга</h3>
+                            <p>Выберите регион и запустите первый парсинг</p>
+                        </div>
+                    </div>
+                `}
+
+                ${currentEntity.parsings.length > 0 ? `
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3 style="margin: 0;">История парсингов</h3>
+                            ${currentEntity.parsings.length > 1 ? `
+                                <button class="btn btn-primary btn-sm" onclick="openTimeComparison()" id="compareBtn" disabled>
+                                    Сравнить выбранные (0)
+                                </button>
+                            ` : ''}
+                        </div>
+                        ${currentEntity.parsings.slice().reverse().map(p => `
+                            <div class="parsing-item">
+                                ${currentEntity.parsings.length > 1 ? `
+                                    <input type="checkbox" class="parsing-checkbox" value="${p.id}"
+                                           onchange="updateCompareSelection()"
+                                           style="margin-right: 15px; width: 18px; height: 18px; cursor: pointer;">
+                                ` : ''}
+                                <div class="info" style="flex: 1;">
+                                    <div class="date">${new Date(p.date).toLocaleString('ru-RU')}</div>
+                                    <div class="region-info">
+                                        <span class="badge badge-region">${p.region?.name || 'Россия'}</span>
+                                        ${Object.keys(p.engines).map(e => `<span style="margin-left: 10px; color: ${getRatingColor(getRatingValue(p.engines[e].metrics))}">${e}: ${formatRating(p.engines[e].metrics)}</span>`).join('')}
+                                    </div>
+                                </div>
+                                <div class="actions">
+                                    <button class="btn btn-primary btn-sm" onclick="openFullscreenReport('${p.id}')">Детали</button>
+                                    <button class="btn btn-danger btn-sm" onclick="deleteParsing('${p.id}')" title="Удалить парсинг">✕</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+
+                ${currentEntity.parsings.length > 1 ? `
+                    <div class="card">
+                        <h3>Сравнение парсингов</h3>
+                        <div class="chart-container">
+                            <canvas id="trendChart"></canvas>
+                        </div>
+                    </div>
+                ` : ''}
+            `;
+
+            if (currentEntity.parsings.length > 1) {
+                renderTrendChart();
+            }
+
+            // Check if there's an active parsing for this entity and show progress
+            checkAndShowActiveParsingProgress();
+        }
+
+        // Check if there's an active parsing for current entity and show progress
+        function checkAndShowActiveParsingProgress() {
+            if (!currentEntity) return;
+
+            for (const [taskId, taskInfo] of activeParsingTasks) {
+                if (taskInfo.entityId === currentEntity.id) {
+                    // Show progress bar
+                    showEntityParsingProgress(taskId);
+
+                    // Update button state
+                    const btn = document.getElementById('runParsingBtn');
+                    if (btn) {
+                        btn.disabled = true;
+                        btn.textContent = 'Парсинг запущен...';
+                    }
+
+                    // Fetch current progress
+                    apiCall(`/parsing-tasks/${taskId}`).then(task => {
+                        updateParsingProgress(taskId, task);
+                    }).catch(() => {});
+
+                    break;
+                }
+            }
+        }
+
+        function renderParsingResults(parsing) {
+            const engines = Object.keys(parsing.engines);
+
+            return `
+                ${parsing.region ? `<div style="margin-bottom: 15px;"><span class="badge badge-region">Регион: ${parsing.region.name}</span></div>` : ''}
+                <div class="grid grid-${engines.length}">
+                    ${engines.map(engine => {
+                        const data = parsing.engines[engine];
+                        const metrics = data.metrics;
+
+                        return `
+                            <div class="card">
+                                <h3>${engine === 'google' ? 'Google' : 'Яндекс'}</h3>
+
+                                <div class="grid grid-3" style="margin-bottom: 20px;">
+                                    <div class="stat-card positive">
+                                        <div class="value">${metrics.positivePercent}%</div>
+                                        <div class="label">Позитив (${metrics.positiveCount})</div>
+                                    </div>
+                                    <div class="stat-card negative">
+                                        <div class="value">${metrics.negativePercent}%</div>
+                                        <div class="label">Негатив (${metrics.negativeCount})</div>
+                                    </div>
+                                    <div class="stat-card neutral">
+                                        <div class="value">${metrics.neutralPercent}%</div>
+                                        <div class="label">Нейтрал (${metrics.neutralCount})</div>
+                                    </div>
+                                </div>
+
+                                <div style="text-align: center; margin-bottom: 20px;">
+                                    <div style="font-size: 2.5em; font-weight: bold; color: ${getRatingColor(getRatingValue(metrics))}">
+                                        ${formatRating(metrics)}
+                                    </div>
+                                    <div style="color: var(--text-secondary)">Оценка</div>
+                                </div>
+
+                                <div class="risk-meter">
+                                    <div class="risk-bar" style="background: linear-gradient(to right, #ff4444, #ffb347, #00d26a);">
+                                        <div class="risk-indicator" style="left: ${getRatingValue(metrics)}%"></div>
+                                    </div>
+                                </div>
+
+                                <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>#</th>
+                                                <th>CTR</th>
+                                                <th>Сайт</th>
+                                                <th>Тональность</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${data.results.slice(0, 10).map(r => `
+                                                <tr class="sentiment-row ${getSentimentClass(r.sentiment)}">
+                                                    <td><span class="position-badge">${r.position}</span></td>
+                                                    <td><span class="ctr-badge">${r.ctr}%</span></td>
+                                                    <td>
+                                                        <a href="${r.url}" target="_blank" style="color: var(--accent-primary);">
+                                                            ${r.domain}
+                                                        </a>
+                                                    </td>
+                                                    <td>
+                                                        <div class="sentiment-cell">
+                                                            <span class="sentiment-indicator ${getSentimentClass(r.sentiment)}"></span>
+                                                            <span>${getSentimentLabel(r.sentiment)}</span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div style="text-align: center; margin-top: 15px;">
+                                    <button class="btn btn-primary btn-sm" onclick="openFullscreenReport('${parsing.id}')">
+                                        Смотреть полный отчет
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        // Fullscreen Report Functions
+        function openFullscreenReport(parsingId) {
+            const parsing = currentEntity.parsings.find(p => p.id === parsingId);
+            if (!parsing) return;
+
+            const engines = Object.keys(parsing.engines);
+            const hasMultipleEngines = engines.length > 1;
+
+            document.getElementById('fullscreenTitle').textContent =
+                `${currentEntity.name} - ${new Date(parsing.date).toLocaleDateString('ru-RU')}`;
+
+            document.getElementById('fullscreenRegion').textContent = parsing.region?.name || 'Россия';
+
+            // Generate tabs - добавляем таб "Сравнение" если есть оба движка
+            document.getElementById('fullscreenTabs').innerHTML = `
+                ${hasMultipleEngines ? `<div class="tab active" onclick="switchTab('compare')">Сравнение</div>` : ''}
+                ${engines.map((engine, index) => `
+                    <div class="tab ${engine} ${!hasMultipleEngines && index === 0 ? 'active' : ''}" onclick="switchTab('${engine}')">
+                        ${engine === 'google' ? 'Google' : 'Яндекс'}
+                    </div>
+                `).join('')}
+            `;
+
+            // Generate comparison view
+            const comparisonContent = hasMultipleEngines ? generateComparisonView(parsing) : '';
+
+            // Generate tab content
+            document.getElementById('fullscreenTabContent').innerHTML = `
+                ${hasMultipleEngines ? `<div class="tab-pane active" id="pane-compare">${comparisonContent}</div>` : ''}
+                ${engines.map((engine, index) => {
+                    const data = parsing.engines[engine];
+                    const metrics = data.metrics;
+
+                    return `
+                        <div class="tab-pane ${!hasMultipleEngines && index === 0 ? 'active' : ''}" id="pane-${engine}">
+                            <!-- Summary Stats -->
+                            <div class="summary-stats">
+                                <div class="summary-stat">
+                                    <div class="value" style="color: var(--positive)">${metrics.positivePercent}%</div>
+                                    <div class="label">Позитив (${metrics.positiveCount} из ${metrics.totalResults})</div>
+                                </div>
+                                <div class="summary-stat">
+                                    <div class="value" style="color: var(--negative)">${metrics.negativePercent}%</div>
+                                    <div class="label">Негатив (${metrics.negativeCount} из ${metrics.totalResults})</div>
+                                </div>
+                                <div class="summary-stat">
+                                    <div class="value" style="color: var(--neutral)">${metrics.neutralPercent}%</div>
+                                    <div class="label">Нейтрал (${metrics.neutralCount} из ${metrics.totalResults})</div>
+                                </div>
+                                <div class="summary-stat">
+                                    <div class="value" style="color: ${getRatingColor(getRatingValue(metrics))}; font-size: 1.5em;">${formatRating(metrics)}</div>
+                                    <div class="label">Оценка</div>
+                                </div>
+                            </div>
+
+                            <!-- Results Table -->
+                            <div class="card">
+                                <h3>Результаты выдачи (${data.results.length} позиций)</h3>
+                                <div class="table-container">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 50px;">#</th>
+                                                <th style="width: 70px;">CTR</th>
+                                                <th>Сайт</th>
+                                                <th>Заголовок</th>
+                                                <th style="width: 100px;">Тональность</th>
+                                                <th style="width: 100px;">Изменить</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${data.results.map(r => `
+                                                <tr class="sentiment-row ${getSentimentClass(r.sentiment)}">
+                                                    <td><span class="position-badge">${r.position}</span></td>
+                                                    <td><span class="ctr-badge">${r.ctr}%</span></td>
+                                                    <td>
+                                                        <a href="${r.url}" target="_blank" style="color: var(--accent-primary);">
+                                                            ${r.domain}
+                                                        </a>
+                                                    </td>
+                                                    <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${r.title}">
+                                                        ${r.title}
+                                                    </td>
+                                                    <td>
+                                                        <div class="sentiment-cell">
+                                                            <span class="sentiment-indicator ${getSentimentClass(r.sentiment)}"></span>
+                                                            <span>${getSentimentLabel(r.sentiment)}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <select class="sentiment-select ${getSentimentClass(r.sentiment)}"
+                                                                onchange="updateSentimentFullscreen('${parsing.id}', ${r.position}, '${engine}', this.value)">
+                                                            <option value="positive" ${r.sentiment === 'positive' ? 'selected' : ''}>Позитив</option>
+                                                            <option value="negative" ${r.sentiment === 'negative' ? 'selected' : ''}>Негатив</option>
+                                                            <option value="neutral" ${r.sentiment === 'neutral' ? 'selected' : ''}>Нейтрал</option>
+                                                        </select>
+                                                    </td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            `;
+
+            document.getElementById('fullscreenReport').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        // Generate side-by-side comparison view
+        function generateComparisonView(parsing) {
+            const googleData = parsing.engines.google;
+            const yandexData = parsing.engines.yandex;
+            const googleMetrics = googleData?.metrics || {};
+            const yandexMetrics = yandexData?.metrics || {};
+            const maxResults = Math.max(googleData?.results?.length || 0, yandexData?.results?.length || 0);
+
+            return `
+                <!-- Comparison Header -->
+                <div class="comparison-header" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+                    <div class="card" style="margin-bottom: 0; border-left: 4px solid #4285f4;">
+                        <h3 style="color: #4285f4; margin-bottom: 15px;">Google</h3>
+                        <div style="display: flex; justify-content: space-around; text-align: center;">
+                            <div>
+                                <div style="font-size: 1.8em; font-weight: bold; color: var(--positive)">${googleMetrics.positivePercent || 0}%</div>
+                                <div style="color: var(--text-secondary); font-size: 0.8em;">Позитив</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 1.8em; font-weight: bold; color: var(--negative)">${googleMetrics.negativePercent || 0}%</div>
+                                <div style="color: var(--text-secondary); font-size: 0.8em;">Негатив</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 1.8em; font-weight: bold; color: ${parseFloat(googleMetrics.balance || 0) >= 0 ? 'var(--positive)' : 'var(--negative)'}">${googleMetrics.balance || 0}%</div>
+                                <div style="color: var(--text-secondary); font-size: 0.8em;">Баланс</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card" style="margin-bottom: 0; border-left: 4px solid #ffcc00;">
+                        <h3 style="color: #ffcc00; margin-bottom: 15px;">Яндекс</h3>
+                        <div style="display: flex; justify-content: space-around; text-align: center;">
+                            <div>
+                                <div style="font-size: 1.8em; font-weight: bold; color: var(--positive)">${yandexMetrics.positivePercent || 0}%</div>
+                                <div style="color: var(--text-secondary); font-size: 0.8em;">Позитив</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 1.8em; font-weight: bold; color: var(--negative)">${yandexMetrics.negativePercent || 0}%</div>
+                                <div style="color: var(--text-secondary); font-size: 0.8em;">Негатив</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 1.8em; font-weight: bold; color: ${parseFloat(yandexMetrics.balance || 0) >= 0 ? 'var(--positive)' : 'var(--negative)'}">${yandexMetrics.balance || 0}%</div>
+                                <div style="color: var(--text-secondary); font-size: 0.8em;">Баланс</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Legend -->
+                <div class="legend" style="margin-bottom: 20px;">
+                    <div class="legend-item">
+                        <span class="sentiment-indicator positive"></span>
+                        <span>Позитив</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="sentiment-indicator neutral"></span>
+                        <span>Нейтрал</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="sentiment-indicator negative"></span>
+                        <span>Негатив</span>
+                    </div>
+                </div>
+
+                <!-- Side-by-side comparison table -->
+                <div class="card">
+                    <h3>Сравнение выдачи по позициям</h3>
+                    <div class="table-container">
+                        <table class="comparison-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 50px; text-align: center;">#</th>
+                                    <th colspan="2" style="background: rgba(66, 133, 244, 0.2); text-align: center;">Google</th>
+                                    <th colspan="2" style="background: rgba(255, 204, 0, 0.2); text-align: center;">Яндекс</th>
+                                </tr>
+                                <tr>
+                                    <th></th>
+                                    <th style="background: rgba(66, 133, 244, 0.1);">Сайт</th>
+                                    <th style="background: rgba(66, 133, 244, 0.1); width: 80px;">Тон</th>
+                                    <th style="background: rgba(255, 204, 0, 0.1);">Сайт</th>
+                                    <th style="background: rgba(255, 204, 0, 0.1); width: 80px;">Тон</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${Array.from({length: maxResults}, (_, i) => {
+                                    const gResult = googleData?.results?.[i];
+                                    const yResult = yandexData?.results?.[i];
+                                    return `
+                                        <tr>
+                                            <td style="text-align: center; font-weight: bold;">${i + 1}</td>
+                                            <td class="comparison-cell ${gResult ? getSentimentClass(gResult.sentiment) : ''}">
+                                                ${gResult ? `
+                                                    <a href="${gResult.url}" target="_blank" style="color: inherit; text-decoration: none;">
+                                                        <div class="comparison-site-info">
+                                                            <span class="domain">${gResult.domain}</span>
+                                                            <span class="title" title="${gResult.title}">${gResult.title?.substring(0, 50)}${gResult.title?.length > 50 ? '...' : ''}</span>
+                                                        </div>
+                                                    </a>
+                                                ` : '<span style="color: var(--text-secondary);">—</span>'}
+                                            </td>
+                                            <td class="comparison-cell ${gResult ? getSentimentClass(gResult.sentiment) : ''}" style="text-align: center;">
+                                                ${gResult ? `<span class="sentiment-indicator ${getSentimentClass(gResult.sentiment)}"></span>` : ''}
+                                            </td>
+                                            <td class="comparison-cell ${yResult ? getSentimentClass(yResult.sentiment) : ''}">
+                                                ${yResult ? `
+                                                    <a href="${yResult.url}" target="_blank" style="color: inherit; text-decoration: none;">
+                                                        <div class="comparison-site-info">
+                                                            <span class="domain">${yResult.domain}</span>
+                                                            <span class="title" title="${yResult.title}">${yResult.title?.substring(0, 50)}${yResult.title?.length > 50 ? '...' : ''}</span>
+                                                        </div>
+                                                    </a>
+                                                ` : '<span style="color: var(--text-secondary);">—</span>'}
+                                            </td>
+                                            <td class="comparison-cell ${yResult ? getSentimentClass(yResult.sentiment) : ''}" style="text-align: center;">
+                                                ${yResult ? `<span class="sentiment-indicator ${getSentimentClass(yResult.sentiment)}"></span>` : ''}
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function closeFullscreenReport() {
+            document.getElementById('fullscreenReport').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        // Time comparison functions
+        let selectedParsingIds = [];
+
+        function updateCompareSelection() {
+            const checkboxes = document.querySelectorAll('.parsing-checkbox:checked');
+            selectedParsingIds = Array.from(checkboxes).map(cb => cb.value);
+
+            const btn = document.getElementById('compareBtn');
+            if (btn) {
+                btn.textContent = `Сравнить выбранные (${selectedParsingIds.length})`;
+                btn.disabled = selectedParsingIds.length < 2;
+            }
+        }
+
+        function openTimeComparison() {
+            if (selectedParsingIds.length < 2) {
+                alert('Выберите минимум 2 парсинга для сравнения');
+                return;
+            }
+
+            // Get selected parsings sorted by date
+            const selectedParsings = selectedParsingIds
+                .map(id => currentEntity.parsings.find(p => p.id === id))
+                .filter(Boolean)
+                .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            // Get available engines
+            const engines = [...new Set(selectedParsings.flatMap(p => Object.keys(p.engines)))];
+
+            document.getElementById('fullscreenTitle').textContent =
+                `${currentEntity.name} - Сравнение по времени`;
+            document.getElementById('fullscreenRegion').textContent =
+                `${selectedParsings.length} парсингов`;
+
+            // Generate tabs for each engine
+            document.getElementById('fullscreenTabs').innerHTML = engines.map((engine, index) => `
+                <div class="tab ${engine} ${index === 0 ? 'active' : ''}" onclick="switchTab('time-${engine}')">
+                    ${engine === 'google' ? 'Google' : 'Яндекс'}
+                </div>
+            `).join('');
+
+            // Generate content for each engine
+            document.getElementById('fullscreenTabContent').innerHTML = engines.map((engine, index) => `
+                <div class="tab-pane ${index === 0 ? 'active' : ''}" id="pane-time-${engine}">
+                    ${generateTimeComparisonForEngine(selectedParsings, engine)}
+                </div>
+            `).join('');
+
+            document.getElementById('fullscreenReport').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function generateTimeComparisonForEngine(parsings, engine) {
+            // Filter parsings that have this engine
+            const engineParsings = parsings.filter(p => p.engines[engine]);
+            if (engineParsings.length < 2) {
+                return `<div class="empty-state"><p>Недостаточно данных для сравнения ${engine}</p></div>`;
+            }
+
+            // Get max positions to show
+            const maxPositions = Math.max(...engineParsings.map(p => p.engines[engine].results.length));
+
+            // Generate metrics summary
+            const metricsHtml = `
+                <div class="summary-stats" style="margin-bottom: 30px;">
+                    ${engineParsings.map((p, i) => {
+                        const m = p.engines[engine].metrics;
+                        return `
+                            <div class="summary-stat">
+                                <div class="value" style="font-size: 0.9em; color: var(--text-secondary)">
+                                    ${new Date(p.date).toLocaleDateString('ru-RU')}
+                                </div>
+                                <div style="font-size: 1.5em; font-weight: bold; color: ${parseFloat(m.balance) >= 0 ? 'var(--positive)' : 'var(--negative)'}">
+                                    ${m.balance}%
+                                </div>
+                                <div class="label">Баланс</div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+
+            // Legend
+            const legendHtml = `
+                <div class="legend" style="margin-bottom: 20px;">
+                    <div class="legend-item">
+                        <span class="bright-sentiment-box positive"></span>
+                        <span>Позитив</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="bright-sentiment-box neutral"></span>
+                        <span>Нейтрал</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="bright-sentiment-box negative"></span>
+                        <span>Негатив</span>
+                    </div>
+                </div>
+            `;
+
+            // Generate simple table: rows = positions, columns = dates with site names
+            const tableHtml = `
+                <div class="card">
+                    <h3>Выдача ${engine === 'google' ? 'Google' : 'Яндекс'} по датам</h3>
+                    ${legendHtml}
+                    <div class="table-container" style="max-height: 700px; overflow: auto;">
+                        <table class="time-comparison-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 50px; text-align: center;">#</th>
+                                    ${engineParsings.map(p => {
+                                        const d = new Date(p.date);
+                                        const dateStr = d.toLocaleDateString('ru-RU', {day: '2-digit', month: '2-digit', year: '2-digit'});
+                                        const timeStr = d.toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'});
+                                        return `
+                                            <th style="text-align: center; min-width: 150px;">
+                                                <div>${dateStr}</div>
+                                                <div style="font-size: 0.85em; font-weight: normal; color: var(--text-secondary);">${timeStr}</div>
+                                            </th>
+                                        `;
+                                    }).join('')}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${Array.from({length: maxPositions}, (_, pos) => `
+                                    <tr>
+                                        <td style="text-align: center; font-weight: bold; color: var(--text-secondary);">${pos + 1}</td>
+                                        ${engineParsings.map(parsing => {
+                                            const result = parsing.engines[engine].results[pos];
+                                            if (!result) {
+                                                return `<td class="time-cell empty">—</td>`;
+                                            }
+                                            return `
+                                                <td class="time-cell bright-${getSentimentClass(result.sentiment)}">
+                                                    <a href="${result.url}" target="_blank" title="${result.title}">
+                                                        ${result.domain}
+                                                    </a>
+                                                </td>
+                                            `;
+                                        }).join('')}
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            return metricsHtml + tableHtml;
+        }
+
+        function switchTab(tabId) {
+            // Update tab buttons
+            document.querySelectorAll('#fullscreenTabs .tab').forEach(tab => {
+                tab.classList.remove('active');
+                // Check by onclick attribute or class
+                const onclick = tab.getAttribute('onclick') || '';
+                if (onclick.includes(`'${tabId}'`)) {
+                    tab.classList.add('active');
+                }
+            });
+
+            // Update tab panes
+            document.querySelectorAll('#fullscreenTabContent .tab-pane').forEach(pane => {
+                pane.classList.remove('active');
+            });
+            const pane = document.getElementById(`pane-${tabId}`);
+            if (pane) pane.classList.add('active');
+        }
+
+        async function updateSentimentFullscreen(parsingId, position, engine, sentiment) {
+            await apiCall(
+                `/projects/${currentProject.id}/entities/${currentEntity.id}/parsings/${parsingId}/results/${position}`,
+                'PATCH',
+                { engine, sentiment }
+            );
+
+            // Refresh data
+            currentEntity = await apiCall(`/projects/${currentProject.id}/entities/${currentEntity.id}`);
+
+            // Re-open the report with updated data
+            openFullscreenReport(parsingId);
+        }
+
+        function renderTrendChart() {
+            const ctx = document.getElementById('trendChart');
+            if (!ctx) return;
+
+            const parsings = currentEntity.parsings;
+            const labels = parsings.map(p => {
+                const date = new Date(p.date).toLocaleDateString('ru-RU');
+                const region = p.region?.name || 'RU';
+                return `${date} (${region})`;
+            });
+
+            const datasets = [];
+            const engines = [...new Set(parsings.flatMap(p => Object.keys(p.engines)))];
+
+            engines.forEach(engine => {
+                const color = engine === 'google' ? '#4285f4' : '#ffcc00';
+
+                datasets.push({
+                    label: `${engine === 'google' ? 'Google' : 'Яндекс'} - Баланс`,
+                    data: parsings.map(p => parseFloat(p.engines[engine]?.metrics.balance || 0)),
+                    borderColor: color,
+                    backgroundColor: color + '33',
+                    fill: true,
+                    tension: 0.3
+                });
+            });
+
+            new Chart(ctx, {
+                type: 'line',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#ccd6f6' }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#8892b0' },
+                            grid: { color: 'rgba(255,255,255,0.05)' }
+                        },
+                        y: {
+                            ticks: {
+                                color: '#8892b0',
+                                callback: v => v + '%'
+                            },
+                            grid: { color: 'rgba(255,255,255,0.05)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Close modal on outside click
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    overlay.classList.remove('active');
+                }
+            });
+        });
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
+                closeFullscreenReport();
+            }
+            // Alt+Left for back, Alt+Right for forward
+            if (e.altKey && e.key === 'ArrowLeft') {
+                goBack();
+            }
+            if (e.altKey && e.key === 'ArrowRight') {
+                goForward();
+            }
+        });
+
+        // Bulk Search Results with History
+        let currentBulkSearchData = null;
+        let bulkSearchPollingInterval = null;
+
+        async function showBulkSearchResults() {
+            try {
+                // Check if search is running
+                const status = await apiCall('/bulk-search/status');
+                if (status.running) {
+                    renderBulkSearchProgress(status);
+                    startBulkSearchPolling();
+                    return;
+                }
+
+                // Load history
+                const history = await apiCall('/bulk-search/history');
+
+                // Try to load current results
+                let currentData = null;
+                try {
+                    currentData = await apiCall('/bulk-search-results');
+                } catch (e) {}
+
+                renderBulkSearchMain(history, currentData);
+            } catch (error) {
+                document.getElementById('mainContent').innerHTML = `
+                    <div class="page-header">
+                        <h1>Bulk Search</h1>
+                    </div>
+                    <div class="card">
+                        <div class="empty-state">
+                            <p>Нет результатов bulk-поиска</p>
+                            <button class="btn btn-primary" onclick="showNewBulkSearchForm()" style="margin-top: 15px;">
+                                Создать новый поиск
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function startBulkSearchPolling() {
+            if (bulkSearchPollingInterval) return;
+            bulkSearchPollingInterval = setInterval(async () => {
+                try {
+                    const status = await apiCall('/bulk-search/status');
+                    if (status.running) {
+                        renderBulkSearchProgress(status);
+                    } else {
+                        clearInterval(bulkSearchPollingInterval);
+                        bulkSearchPollingInterval = null;
+                        showBulkSearchResults();
+                    }
+                } catch (e) {
+                    clearInterval(bulkSearchPollingInterval);
+                    bulkSearchPollingInterval = null;
+                }
+            }, 2000);
+        }
+
+        function renderBulkSearchProgress(status) {
+            const progress = status.progress || { current: 0, total: 1, query: '' };
+            const percent = Math.round((progress.current / progress.total) * 100);
+
+            document.getElementById('mainContent').innerHTML = `
+                <div class="page-header">
+                    <h1>Bulk Search</h1>
+                </div>
+                <div class="card" style="text-align: center; padding: 40px;">
+                    <div style="font-size: 48px; margin-bottom: 20px;">🔍</div>
+                    <h2 style="margin-bottom: 20px;">Поиск выполняется...</h2>
+                    <div style="background: var(--bg-card); border-radius: 10px; padding: 20px; max-width: 500px; margin: 0 auto;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                            <span>Прогресс:</span>
+                            <span style="font-weight: bold;">${progress.current} / ${progress.total}</span>
+                        </div>
+                        <div style="background: var(--border); border-radius: 5px; height: 20px; overflow: hidden;">
+                            <div style="background: linear-gradient(90deg, #667eea, #764ba2); height: 100%; width: ${percent}%; transition: width 0.3s;"></div>
+                        </div>
+                        <div style="margin-top: 15px; color: var(--text-secondary); font-size: 13px;">
+                            Текущий запрос: "${progress.query || '...'}"
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderBulkSearchMain(history, currentData) {
+            const formatDate = (isoString) => {
+                const d = new Date(isoString);
+                return d.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            };
+
+            let html = `
+                <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <h1>Bulk Search</h1>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-primary" onclick="showNewBulkSearchForm()">
+                            + Новый поиск
+                        </button>
+                        ${currentData ? `
+                            <button class="btn btn-success" onclick="restartBulkSearch()">
+                                🔄 Перезапустить
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+
+            // Current results card
+            if (currentData) {
+                currentBulkSearchData = currentData;
+                html += `
+                    <div class="card" style="margin-bottom: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3>Текущие результаты</h3>
+                            <span style="color: var(--text-secondary); font-size: 13px;">${formatDate(currentData.timestamp)}</span>
+                        </div>
+                        <div class="stats-grid" style="margin-bottom: 15px;">
+                            <div class="stat-card" style="border-left-color: #4caf50;">
+                                <div class="stat-value" style="color: #4caf50;">${currentData.foundCount}</div>
+                                <div class="stat-label">Найдено</div>
+                            </div>
+                            <div class="stat-card" style="border-left-color: #f44336;">
+                                <div class="stat-value" style="color: #f44336;">${currentData.notFoundCount}</div>
+                                <div class="stat-label">Не найдено</div>
+                            </div>
+                            <div class="stat-card" style="border-left-color: #2196f3;">
+                                <div class="stat-value">${((currentData.foundCount / currentData.targetUrlsCount) * 100).toFixed(1)}%</div>
+                                <div class="stat-label">Покрытие</div>
+                            </div>
+                            <div class="stat-card" style="border-left-color: #9c27b0;">
+                                <div class="stat-value">${currentData.searchDepth || 50}</div>
+                                <div class="stat-label">ТОП</div>
+                            </div>
+                        </div>
+                        <button class="btn btn-secondary" onclick="showBulkSearchDetails(null)" style="width: 100%;">
+                            Показать детали
+                        </button>
+                    </div>
+                `;
+            }
+
+            // History card
+            html += `
+                <div class="card">
+                    <h3 style="margin-bottom: 15px;">История поисков</h3>
+            `;
+
+            if (history && history.length > 0) {
+                html += `<div style="max-height: 400px; overflow-y: auto;">`;
+                history.forEach(item => {
+                    html += `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--border);">
+                            <div>
+                                <div style="font-weight: 500;">${formatDate(item.timestamp)}</div>
+                                <div style="font-size: 12px; color: var(--text-secondary);">
+                                    ${item.queriesCount} запросов | ${item.targetUrlsCount} URLs | ТОП ${item.searchDepth || 50}
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <div style="text-align: right;">
+                                    <span style="color: #4caf50; font-weight: bold;">${item.foundCount}</span>
+                                    <span style="color: var(--text-secondary);"> / </span>
+                                    <span style="color: #f44336;">${item.notFoundCount}</span>
+                                </div>
+                                <div style="display: flex; gap: 5px;">
+                                    <button class="btn btn-sm" onclick="showBulkSearchDetails('${item.id}')" title="Показать">👁</button>
+                                    <button class="btn btn-sm" onclick="deleteBulkSearchHistory('${item.id}')" title="Удалить" style="color: #f44336;">🗑</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += `</div>`;
+            } else {
+                html += `
+                    <div style="text-align: center; padding: 30px; color: var(--text-secondary);">
+                        История пуста
+                    </div>
+                `;
+            }
+
+            html += `</div>`;
+            document.getElementById('mainContent').innerHTML = html;
+        }
+
+        async function showBulkSearchDetails(id) {
+            let data;
+            if (id) {
+                data = await apiCall(`/bulk-search/history/${id}`);
+            } else {
+                data = currentBulkSearchData || await apiCall('/bulk-search-results');
+            }
+            renderBulkSearchDetails(data);
+        }
+
+        function renderBulkSearchDetails(data) {
+            const foundArticles = Object.entries(data.foundArticles).filter(([url, positions]) => positions.length > 0);
+            const notFoundArticles = Object.entries(data.foundArticles).filter(([url, positions]) => positions.length === 0);
+
+            const formatDate = (isoString) => {
+                const d = new Date(isoString);
+                return d.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            };
+
+            const extractDomain = (url) => {
+                try { return new URL(url).hostname.replace('www.', ''); } catch { return url; }
+            };
+
+            let html = `
+                <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h1>Результаты Bulk Search</h1>
+                        <p style="color: var(--text-secondary);">
+                            Дата: ${formatDate(data.timestamp)} |
+                            Глубина: ТОП ${data.searchDepth || 50} |
+                            Запросов: ${data.queriesCount} |
+                            Статей: ${data.targetUrlsCount}
+                        </p>
+                    </div>
+                    <button class="btn btn-secondary" onclick="showBulkSearchResults()">← Назад</button>
+                </div>
+
+                <div class="stats-grid" style="margin-bottom: 30px;">
+                    <div class="stat-card" style="border-left-color: #4caf50;">
+                        <div class="stat-value" style="color: #4caf50;">${data.foundCount}</div>
+                        <div class="stat-label">Найдено</div>
+                    </div>
+                    <div class="stat-card" style="border-left-color: #f44336;">
+                        <div class="stat-value" style="color: #f44336;">${data.notFoundCount}</div>
+                        <div class="stat-label">Не найдено</div>
+                    </div>
+                    <div class="stat-card" style="border-left-color: #2196f3;">
+                        <div class="stat-value">${((data.foundCount / data.targetUrlsCount) * 100).toFixed(1)}%</div>
+                        <div class="stat-label">Покрытие</div>
+                    </div>
+                    <div class="stat-card" style="border-left-color: #9c27b0;">
+                        <div class="stat-value">${data.searchDepth || 50}</div>
+                        <div class="stat-label">ТОП глубина</div>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-bottom: 20px;">
+                    <h3 style="color: #4caf50;">✅ Найденные статьи (${foundArticles.length})</h3>
+                    <div class="results-list" style="margin-top: 15px;">
+            `;
+
+            foundArticles.forEach(([url, positions]) => {
+                const domain = extractDomain(url);
+                const bestPosition = Math.min(...positions.map(p => p.position));
+                const positionsByQuery = positions.sort((a, b) => a.position - b.position);
+
+                html += `
+                    <div class="result-item" style="margin-bottom: 20px; padding: 15px; background: rgba(76, 175, 80, 0.1); border-radius: 8px; border-left: 4px solid #4caf50;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                            <div>
+                                <a href="${url}" target="_blank" style="color: var(--primary); font-weight: 600; font-size: 14px;">
+                                    ${domain}
+                                </a>
+                                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 5px; word-break: break-all;">
+                                    ${url}
+                                </div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="background: #4caf50; color: white; padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 14px;">
+                                    Лучшая: ${bestPosition}
+                                </div>
+                                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 5px;">
+                                    ${positions.length} запрос${positions.length > 1 ? (positions.length < 5 ? 'а' : 'ов') : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">
+                            ${positionsByQuery.map(p => `
+                                <div style="background: var(--bg-card); padding: 6px 12px; border-radius: 6px; font-size: 12px; border: 1px solid var(--border);">
+                                    <span style="color: ${p.position <= 10 ? '#4caf50' : p.position <= 20 ? '#ff9800' : '#f44336'}; font-weight: bold;">
+                                        #${p.position}
+                                    </span>
+                                    <span style="color: var(--text-secondary); margin-left: 5px;">${p.query}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="color: #f44336;">❌ Не найденные статьи (${notFoundArticles.length})</h3>
+                    <div class="results-list" style="margin-top: 15px; max-height: 400px; overflow-y: auto;">
+            `;
+
+            notFoundArticles.forEach(([url, _]) => {
+                const domain = extractDomain(url);
+                html += `
+                    <div style="padding: 10px 15px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <a href="${url}" target="_blank" style="color: var(--text-secondary); font-size: 13px;">
+                                ${domain}
+                            </a>
+                            <div style="font-size: 11px; color: var(--text-secondary); opacity: 0.7; margin-top: 3px; word-break: break-all; max-width: 600px;">
+                                ${url}
+                            </div>
+                        </div>
+                        <span style="color: #f44336; font-size: 12px;">Не в топ ${data.searchDepth || 50}</span>
+                    </div>
+                `;
+            });
+
+            html += `
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('mainContent').innerHTML = html;
+        }
+
+        function showNewBulkSearchForm() {
+            const defaultQueries = `Кристина Егиазарова
+Кристина Егиазарова отзывы
+Кристина Егиазарова мнения
+Кристина Егиазарова впечатления
+Кристина Егиазарова комментарии
+Кристина Егиазарова репутация
+Кристина Егиазарова мнение людей
+Кристина Егиазарова история
+Кристина Егиазарова биография отзывы
+Кристина Егиазарова негатив
+Кристина Егиазарова скандал
+Кристина Егиазарова конфликт
+Кристина Егиазарова разоблачение
+Кристина Егиазарова правда
+Кристина Егиазарова критика
+Кристина Егиазарова жалоба
+Кристина Егиазарова обман
+Кристина Егиазарова мошенничество
+Кристина Егиазарова отзывы отрицательные
+Кристина Егиазарова плохие отзывы
+Кристина Егиазарова разоблачение личности
+Кристина Егиазарова скандальные истории`;
+
+            const defaultUrls = currentBulkSearchData?.targetUrls?.join('\n') || '';
+
+            document.getElementById('mainContent').innerHTML = `
+                <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <h1>Новый Bulk Search</h1>
+                    <button class="btn btn-secondary" onclick="showBulkSearchResults()">← Отмена</button>
+                </div>
+
+                <div class="card">
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 500;">Поисковые запросы (по одному на строку):</label>
+                        <textarea id="bulkQueries" style="width: 100%; height: 200px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text-primary); font-family: monospace; font-size: 13px; resize: vertical;">${defaultQueries}</textarea>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 500;">Целевые URL (по одному на строку):</label>
+                        <textarea id="bulkUrls" style="width: 100%; height: 200px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text-primary); font-family: monospace; font-size: 13px; resize: vertical;" placeholder="https://example.com/article1
+https://example.com/article2">${defaultUrls}</textarea>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 500;">Глубина поиска (ТОП):</label>
+                        <select id="bulkDepth" style="padding: 10px 15px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text-primary); font-size: 14px;">
+                            <option value="50">ТОП 50</option>
+                            <option value="100" selected>ТОП 100</option>
+                            <option value="150">ТОП 150</option>
+                            <option value="200">ТОП 200</option>
+                        </select>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="startNewBulkSearch()" style="width: 100%; padding: 15px; font-size: 16px;">
+                        🚀 Запустить поиск
+                    </button>
+                </div>
+            `;
+        }
+
+        async function startNewBulkSearch() {
+            const queriesText = document.getElementById('bulkQueries').value.trim();
+            const urlsText = document.getElementById('bulkUrls').value.trim();
+            const depth = parseInt(document.getElementById('bulkDepth').value);
+
+            const queries = queriesText.split('\n').map(q => q.trim()).filter(q => q.length > 0);
+            const targetUrls = urlsText.split('\n').map(u => u.trim()).filter(u => u.length > 0);
+
+            if (queries.length === 0) {
+                alert('Введите хотя бы один поисковый запрос');
+                return;
+            }
+            if (targetUrls.length === 0) {
+                alert('Введите хотя бы один целевой URL');
+                return;
+            }
+
+            try {
+                const response = await apiCall('/bulk-search/start', 'POST', { queries, targetUrls, depth });
+                // Immediately show progress screen
+                renderBulkSearchProgress({
+                    running: true,
+                    progress: { current: 0, total: queries.length, query: 'Запуск...' }
+                });
+                // Start polling for updates
+                startBulkSearchPolling();
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
+            }
+        }
+
+        async function restartBulkSearch() {
+            if (!currentBulkSearchData) {
+                alert('Нет данных для перезапуска');
+                return;
+            }
+
+            // Extract queries from existing data or reconstruct from allResults/foundArticles
+            let queries = currentBulkSearchData.queries || [];
+            if (queries.length === 0) {
+                // Try to get from allResults keys first (more complete)
+                if (currentBulkSearchData.allResults) {
+                    queries = Object.keys(currentBulkSearchData.allResults);
+                } else if (currentBulkSearchData.foundArticles) {
+                    // Fallback: extract from foundArticles
+                    const querySet = new Set();
+                    Object.values(currentBulkSearchData.foundArticles).forEach(items => {
+                        items.forEach(item => {
+                            if (item.query) querySet.add(item.query);
+                        });
+                    });
+                    queries = Array.from(querySet);
+                }
+            }
+
+            if (queries.length === 0) {
+                alert('Не удалось восстановить запросы для перезапуска. Создайте новый поиск.');
+                return;
+            }
+
+            if (!confirm(`Перезапустить поиск с ${queries.length} запросами?`)) {
+                return;
+            }
+
+            const targetUrls = currentBulkSearchData.targetUrls || Object.keys(currentBulkSearchData.foundArticles);
+            const depth = currentBulkSearchData.searchDepth || 100;
+
+            try {
+                await apiCall('/bulk-search/start', 'POST', { queries, targetUrls, depth });
+                // Immediately show progress screen
+                renderBulkSearchProgress({
+                    running: true,
+                    progress: { current: 0, total: queries.length, query: 'Запуск...' }
+                });
+                // Start polling for updates
+                startBulkSearchPolling();
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
+            }
+        }
+
+        async function deleteBulkSearchHistory(id) {
+            if (!confirm('Удалить этот результат из истории?')) {
+                return;
+            }
+
+            try {
+                await apiCall(`/bulk-search/history/${id}`, 'DELETE');
+                showBulkSearchResults();
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>
