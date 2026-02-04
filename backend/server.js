@@ -1305,7 +1305,7 @@ app.get('/api/projects', (req, res) => {
 
 // Create project
 app.post('/api/projects', (req, res) => {
-    const { name } = req.body;
+    const { name, region } = req.body;
     if (!name) {
         return res.status(400).json({ error: 'Project name is required' });
     }
@@ -1314,6 +1314,7 @@ app.post('/api/projects', (req, res) => {
     const newProject = {
         id: uuidv4(),
         name,
+        region: region || 'ru',
         createdAt: new Date().toISOString(),
         entities: []
     };
@@ -1488,7 +1489,6 @@ app.post('/api/projects/:projectId/entities/:entityId/parse', asyncHandler(async
 // Start background parsing for entity
 app.post('/api/projects/:projectId/entities/:entityId/parse-background', asyncHandler(async (req, res) => {
     const { region } = req.body;
-    const selectedRegion = region || 'ru';
     const { projectId, entityId } = req.params;
 
     const projects = loadProjects();
@@ -1503,6 +1503,9 @@ app.post('/api/projects/:projectId/entities/:entityId/parse-background', asyncHa
     if (!entity) {
         return res.status(404).json({ error: 'Entity not found' });
     }
+
+    // Use provided region, or project region, or default to 'ru'
+    const selectedRegion = region || project.region || 'ru';
 
     // Check if parsing already running for this entity
     for (const [taskId, task] of activeParsings) {

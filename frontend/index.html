@@ -1358,6 +1358,12 @@
                 <label>Название проекта</label>
                 <input type="text" class="form-control" id="projectName" placeholder="Например: Мониторинг бренда">
             </div>
+            <div class="form-group">
+                <label>Регион поиска</label>
+                <select class="form-control" id="projectRegion">
+                    <!-- Populated dynamically -->
+                </select>
+            </div>
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="closeModal('createProjectModal')">Отмена</button>
                 <button class="btn btn-primary" onclick="createProject()">Создать</button>
@@ -1538,6 +1544,12 @@
             }
         }
 
+        // Get region name by code
+        function getRegionName(code) {
+            const region = regions.find(r => r.code === code);
+            return region ? region.name : code || 'Россия';
+        }
+
         // API Functions with improved error handling
         async function apiCall(endpoint, method = 'GET', data = null) {
             const options = {
@@ -1713,9 +1725,10 @@
         // Create Project
         async function createProject() {
             const name = document.getElementById('projectName').value.trim();
+            const region = document.getElementById('projectRegion').value;
             if (!name) return alert('Введите название проекта');
 
-            await apiCall('/projects', 'POST', { name });
+            await apiCall('/projects', 'POST', { name, region });
             document.getElementById('projectName').value = '';
             closeModal('createProjectModal');
             loadProjects();
@@ -2114,6 +2127,11 @@
 
         // Modal Functions
         function showCreateProjectModal() {
+            // Populate regions dropdown
+            const regionSelect = document.getElementById('projectRegion');
+            regionSelect.innerHTML = regions.map(r =>
+                `<option value="${r.code}" ${r.code === 'ru' ? 'selected' : ''}>${r.name}</option>`
+            ).join('');
             document.getElementById('createProjectModal').classList.add('active');
         }
 
@@ -2360,7 +2378,7 @@
 
                 <div class="page-header">
                     <h1>${currentProject.name}</h1>
-                    <p>Создан: ${new Date(currentProject.createdAt).toLocaleDateString('ru-RU')}</p>
+                    <p>Создан: ${new Date(currentProject.createdAt).toLocaleDateString('ru-RU')} | Регион: ${getRegionName(currentProject.region)}</p>
                 </div>
 
                 <div class="card">
@@ -2557,7 +2575,9 @@
             }
 
             try {
-                const response = await apiCall(`/projects/${currentProject.id}/entities/${entityId}/parse-background`, 'POST', { region: 'ru' });
+                // Use project region or default to 'ru'
+                const region = currentProject?.region || 'ru';
+                const response = await apiCall(`/projects/${currentProject.id}/entities/${entityId}/parse-background`, 'POST', { region });
 
                 if (response.alreadyRunning) {
                     showToast('info', 'Парсинг уже запущен', 'Дождитесь завершения текущего парсинга');
