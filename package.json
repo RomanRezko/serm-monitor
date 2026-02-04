@@ -1,0 +1,13 @@
+{
+  "name": "serm-monitor",
+  "version": "1.0.0",
+  "description": "SERM Monitor - Search Engine Reputation Management Dashboard",
+  "scripts": {
+    "start": "cd backend && npm start",
+    "install": "cd backend && npm install",
+    "postinstall": "cd backend && npm install"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
